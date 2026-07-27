@@ -1,6 +1,6 @@
 modLoader = "javafml"
 loaderVersion = "[1,)"
-license = "AGPL-3.0-only"
+license = "AGPL-3.0-or-later"
 issueTrackerURL = "https://github.com/ChouChiu/I18nAutoUpdateMod/issues"
 
 [[mods]]

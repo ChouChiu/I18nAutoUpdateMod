@@ -1,7 +1,7 @@
 # I18nAutoUpdateMod
 
 [![Modrinth](https://img.shields.io/modrinth/v/PWERr14M?logo=modrinth&label=Modrinth)](https://modrinth.com/mod/PWERr14M)
-[![License](https://img.shields.io/badge/license-AGPL--3.0--only-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
 
 一个更好的自动下载、更新、合并并应用「[简体中文资源包（Minecraft Mod Language Package）](https://github.com/CFPAOrg/Minecraft-Mod-Language-Package)」的客户端 Mod。
 
@@ -58,4 +58,4 @@ Quilt 使用 Fabric 资源；NeoForge 使用 Forge 资源。缺少专用变体�
 
 ## 许可证
 
-项目采用 [AGPL-3.0-only](LICENSE) 许可证。
+项目采用 [AGPL-3.0-or-later](LICENSE) 许可证。
