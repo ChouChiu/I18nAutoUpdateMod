@@ -61,6 +61,12 @@
         {"range": "[1.21.7,1.21.8]", "packFormat": 64},
         {"range": "[1.21.9,1.21.11]", "minFormat": 69, "maxFormat": 75}
       ]
+    },
+    {
+      "packs": ["1.21","26.1"],
+      "versions": [
+        {"range": "[26.1,26.2]", "minFormat": 84, "maxFormat": 88}
+      ]
     }
   ],
   "assets": {
@@ -88,6 +94,10 @@
     "1.21": {
       "Forge": "Minecraft-Mod-Language-Modpack-1-21.zip",
       "Fabric": "Minecraft-Mod-Language-Modpack-1-21-Fabric.zip"
+    },
+    "26.1": {
+      "Forge": "Minecraft-Mod-Language-Modpack-26-1.zip",
+      "Fabric": "Minecraft-Mod-Language-Modpack-26-1-Fabric.zip"
     }
   }
 }
