@@ -12,6 +12,10 @@ on:
       change-log:
         required: false
         type: string
+      release-tag:
+        required: false
+        type: string
+        default: ''
 
 jobs:
   build-common:
@@ -31,6 +35,7 @@ jobs:
           cache: 'gradle'
       -
         name: Build
+        id: build
         env:
           IS_SNAPSHOT: ${{ inputs.is-snapshot }}
         run: |
@@ -45,6 +50,16 @@ jobs:
         run: |
           ./gradlew modrinth modrinthSyncBody --info --stacktrace
       -
+        name: Publish GitHub Release
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && !inputs.is-snapshot && inputs.release-tag != '' }}
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ inputs.release-tag }}
+          files: build/libs/*.jar
+          fail_on_unmatched_files: true
+      -
+        name: Upload workflow artifact
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           name: I18nAutoUpdateMod-${{ inputs.type }}-${{ github.run_number }}

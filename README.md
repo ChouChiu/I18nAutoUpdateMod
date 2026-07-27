@@ -17,11 +17,11 @@
 
 ## 下载
 
-本项目仅通过 [Modrinth](https://modrinth.com/mod/PWERr14M) 发布。
+本项目通过 [Modrinth](https://modrinth.com/mod/PWERr14M) 和 [GitHub Releases](https://github.com/ChouChiu/I18nAutoUpdateMod/releases) 发布。
 
 ## 安装
 
-1. 从 Modrinth 下载适用于当前版本的 JAR。
+1. 从 Modrinth 或 GitHub Releases 下载适用于当前版本的 JAR。
 2. 将 JAR 放入 Minecraft 实例的 `mods` 文件夹。
 3. 启动游戏，Mod 会在后台检查并更新语言包。
 
