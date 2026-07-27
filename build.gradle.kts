@@ -93,7 +93,7 @@ val supportMinecraftVersions = providers.gradleProperty("minecraft").get().split
 
 modrinth {
     token.set(System.getenv("MODRINTH_TOKEN"))
-    projectId.set("PWERr14M")
+    projectId.set("mEn7eS3l")
     versionNumber.set("${project.version}")
     versionName.set("I18nAutoUpdateMod ${project.version}")
     versionType.set("release")

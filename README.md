@@ -1,6 +1,6 @@
 # I18nAutoUpdateMod
 
-[![Modrinth](https://img.shields.io/modrinth/v/PWERr14M?logo=modrinth&label=Modrinth)](https://modrinth.com/mod/PWERr14M)
+[![Modrinth](https://img.shields.io/modrinth/v/mEn7eS3l?logo=modrinth&label=Modrinth)](https://modrinth.com/mod/mEn7eS3l)
 [![License](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
 
 一个更好的自动下载、更新、合并并应用「[简体中文资源包（Minecraft Mod Language Package）](https://github.com/CFPAOrg/Minecraft-Mod-Language-Package)」的客户端 Mod。
@@ -17,7 +17,7 @@
 
 ## 下载
 
-本项目通过 [Modrinth](https://modrinth.com/mod/PWERr14M) 和 [GitHub Releases](https://github.com/ChouChiu/I18nAutoUpdateMod/releases) 发布。
+本项目通过 [Modrinth](https://modrinth.com/mod/mEn7eS3l) 和 [GitHub Releases](https://github.com/ChouChiu/I18nAutoUpdateMod/releases) 发布。
 
 ## 安装
 
