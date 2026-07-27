@@ -34,7 +34,7 @@ jobs:
         env:
           IS_SNAPSHOT: ${{ inputs.is-snapshot }}
         run: |
-          ./gradlew clean shadowJar --info --stacktrace
+          ./gradlew clean test shadowJar --info --stacktrace
       -
         name: Publish Modrinth
         if: ${{ !inputs.is-snapshot }}
@@ -56,5 +56,5 @@ jobs:
       -
         uses: actions/upload-artifact@v4
         with:
-          name: I18nUpdateMod-${{ inputs.type }}-${{ github.run_number }}
+          name: I18nAutoUpdateMod-${{ inputs.type }}-${{ github.run_number }}
           path: build/libs

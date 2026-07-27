@@ -1,0 +1,15 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "AGPL-3.0-only"
+issueTrackerURL = "https://github.com/ChouChiu/I18nAutoUpdateMod/issues"
+
+[[mods]]
+modId = "i18nautoupdatemod"
+version = "${version}"
+displayName = "I18nAutoUpdateMod"
+displayURL = "https://github.com/ChouChiu/I18nAutoUpdateMod"
+logoFile = "icon.png"
+authors = "xfl03, ChouChiu"
+description = '''
+Automatically downloads, updates, converts, and applies the CFPA Minecraft Mod Language Package.
+'''

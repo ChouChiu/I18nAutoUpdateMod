@@ -5,7 +5,7 @@ plugins {
     id("io.github.CDAGaming.cursegradle") version "1.6.1"
 }
 
-group = "i18nupdatemod"
+group = "i18nautoupdatemod"
 version = project.properties["version"].toString() + if ("false" == System.getenv("IS_SNAPSHOT")) "" else "-SNAPSHOT"
 
 java {
@@ -20,13 +20,15 @@ tasks.withType<JavaCompile> {
 tasks.shadowJar {
     manifest {
         attributes(
-            "TweakClass" to "i18nupdatemod.launchwrapper.LaunchWrapperTweaker",
+            "TweakClass" to "i18nautoupdatemod.launchwrapper.LaunchWrapperTweaker",
             "TweakOrder" to 33,
-            "Automatic-Module-Name" to "i18nupdatemod",
+            "Automatic-Module-Name" to "i18nautoupdatemod",
+            "Implementation-Title" to "I18nAutoUpdateMod",
+            "Implementation-Version" to project.version,
         )
     }
     minimize()
-    archiveBaseName.set("I18nUpdateMod")
+    archiveBaseName.set("I18nAutoUpdateMod")
     relocate("com.google.archivepatcher", "include.com.google.archivepatcher")
     dependencies {
         include(dependency("net.runelite.archive-patcher:archive-patcher-applier:.*"))
@@ -39,11 +41,18 @@ repositories {
     maven("https://libraries.minecraft.net/")
     maven("https://maven.fabricmc.net/")
     maven("https://files.minecraftforge.net/maven")
+    maven("https://maven.neoforged.net/releases")
     maven("https://repo.runelite.net/")
 }
 
 configurations.configureEach {
-    isTransitive = false
+    isTransitive = name.startsWith("test")
+}
+
+configurations.compileClasspath {
+    attributes {
+        attribute(org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
+    }
 }
 
 dependencies {
@@ -55,6 +64,8 @@ dependencies {
     implementation("net.fabricmc:fabric-loader:0.15.9")
     implementation("cpw.mods:modlauncher:8.1.3")
     implementation("net.minecraft:launchwrapper:1.12")
+    compileOnly("net.neoforged.fancymodloader:loader:10.0.36")
+    compileOnly("net.neoforged:mergetool:2.0.0:api")
 
     implementation("commons-io:commons-io:2.16.1")
     implementation("org.ow2.asm:asm:9.7")
@@ -67,7 +78,7 @@ tasks.test {
 }
 
 tasks.processResources {
-    filesMatching("**") {
+    filesMatching(listOf("fabric.mod.json", "META-INF/neoforge.mods.toml")) {
         expand(
             "version" to project.version,
         )
@@ -80,7 +91,7 @@ modrinth {
     token.set(System.getenv("MODRINTH_TOKEN"))
     projectId.set("PWERr14M")
     versionNumber.set("${project.version}")
-    versionName.set("I18nUpdateMod ${project.version}")
+    versionName.set("I18nAutoUpdateMod ${project.version}")
     versionType.set("release")
     uploadFile.set(tasks["shadowJar"])
     gameVersions.set(supportMinecraftVersions)
@@ -97,7 +108,7 @@ curseforge {
         id = "297404"
         releaseType = "release"
         mainArtifact(tasks["shadowJar"]) {
-            this.displayName = "I18nUpdateMod ${project.version}"
+            this.displayName = "I18nAutoUpdateMod ${project.version}"
         }
         gameVersionStrings.addAll(supportMinecraftVersions)
         gameVersionStrings.addAll(curseForgeSpecialVersions)

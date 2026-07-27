@@ -1,2 +1,2 @@
-rootProject.name = "I18nUpdateMod"
+rootProject.name = "I18nAutoUpdateMod"
 

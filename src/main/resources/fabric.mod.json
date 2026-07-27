@@ -1,25 +1,32 @@
 {
   "schemaVersion": 1,
-  "id": "i18nupdatemod",
+  "id": "i18nautoupdatemod",
   "version": "${version}",
   "environment": "client",
   "entrypoints": {
     "client": [
-      "i18nupdatemod.fabricloader.FabricLoaderMod"
+      "i18nautoupdatemod.fabricloader.FabricLoaderMod"
     ]
   },
-  "name": "I18nUpdateMod",
-  "description": "Brand new Minecraft Mod Language Package update mod.",
+  "name": "I18nAutoUpdateMod",
+  "description": "Automatically downloads, updates, converts, and applies the CFPA Minecraft Mod Language Package.",
+  "icon": "icon.png",
   "contact": {
-    "homepage": "https://github.com/xfl03/I18nUpdateMod3",
-    "issues": "https://github.com/xfl03/I18nUpdateMod3/issues",
-    "sources": "https://github.com/xfl03/I18nUpdateMod3"
+    "homepage": "https://github.com/ChouChiu/I18nAutoUpdateMod",
+    "issues": "https://github.com/ChouChiu/I18nAutoUpdateMod/issues",
+    "sources": "https://github.com/ChouChiu/I18nAutoUpdateMod"
   },
   "authors": [
     {
       "name": "xfl03",
       "contact": {
         "homepage": "https://github.com/xfl03"
+      }
+    },
+    {
+      "name": "ChouChiu",
+      "contact": {
+        "homepage": "https://github.com/ChouChiu"
       }
     }
   ],

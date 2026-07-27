@@ -1,0 +1,33 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="I18nAutoUpdate 图标">
+  <defs>
+    <linearGradient id="backgroundGradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4FACFE" />
+      <stop offset="52%" stop-color="#20C9F4" />
+      <stop offset="100%" stop-color="#00E6C7" />
+    </linearGradient>
+    <linearGradient id="topHighlight" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.38" />
+      <stop offset="42%" stop-color="#FFFFFF" stop-opacity="0.08" />
+      <stop offset="72%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+    <filter id="arrowShadow" x="-30%" y="-30%" width="160%" height="170%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#006D85" flood-opacity="0.24" />
+    </filter>
+    <path id="downloadArrow" d="M231 142 Q231 132 241 132 H271 Q281 132 281 142 V263 H326 Q338 263 342 273 Q346 283 338 292 L270 374 Q264 382 256 382 Q248 382 242 374 L174 292 Q166 283 170 273 Q174 263 186 263 H231 Z" />
+    <mask id="globeMask" maskUnits="userSpaceOnUse">
+      <rect width="512" height="512" fill="white" />
+      <use href="#downloadArrow" fill="black" stroke="black" stroke-width="18" stroke-linejoin="round" />
+    </mask>
+  </defs>
+  <rect x="32" y="32" width="448" height="448" fill="url(#backgroundGradient)" />
+  <g mask="url(#globeMask)">
+    <circle cx="256" cy="246" r="148" fill="none" stroke="#FFFFFF" stroke-width="9" />
+    <g fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round">
+      <ellipse cx="256" cy="246" rx="65" ry="148" />
+      <ellipse cx="256" cy="246" rx="148" ry="62" />
+    </g>
+  </g>
+  <use href="#downloadArrow" fill="#006B80" opacity="0.22" filter="url(#arrowShadow)" />
+  <use href="#downloadArrow" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="4" stroke-linejoin="round" />
+  <rect x="32" y="32" width="448" height="448" fill="url(#topHighlight)" pointer-events="none" />
+</svg>
