@@ -8,6 +8,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class I18nAutoUpdateModTest {
@@ -44,5 +45,19 @@ class I18nAutoUpdateModTest {
         assertSame(first, second);
         release.countDown();
         first.get(2, TimeUnit.SECONDS);
+    }
+
+    @Test
+    void usesModernResourcePackIdForCalendarVersioning() {
+        String fileName = "Minecraft-Mod-Language-Modpack-Converted-26.1.2.zip";
+        assertEquals(
+                "file/" + fileName,
+                I18nAutoUpdateMod.resourcePackId("26.1.2", fileName));
+        assertEquals(
+                "file/" + fileName,
+                I18nAutoUpdateMod.resourcePackId("1.13", fileName));
+        assertEquals(
+                fileName,
+                I18nAutoUpdateMod.resourcePackId("1.12.2", fileName));
     }
 }
