@@ -1,12 +1,12 @@
 plugins {
     id("java")
-    id("com.github.johnrengelman.shadow") version "8.1.1"
-    id("com.modrinth.minotaur") version "2.8.4"
+    id("com.gradleup.shadow") version "9.6.1"
+    id("com.modrinth.minotaur") version "2.9.0"
     id("io.github.CDAGaming.cursegradle") version "1.6.1"
 }
 
 group = "i18nautoupdatemod"
-version = project.properties["version"].toString() + if ("false" == System.getenv("IS_SNAPSHOT")) "" else "-SNAPSHOT"
+version = providers.gradleProperty("version").get() + if ("false" == System.getenv("IS_SNAPSHOT")) "" else "-SNAPSHOT"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -15,6 +15,7 @@ java {
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
+    options.compilerArgs.add("-Xlint:-options")
 }
 
 tasks.shadowJar {
@@ -58,6 +59,7 @@ configurations.compileClasspath {
 dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.3")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.3")
     implementation("net.runelite.archive-patcher:archive-patcher-applier:1.2")
     compileOnly("org.jetbrains:annotations:24.1.0")
 
@@ -77,15 +79,18 @@ tasks.test {
     useJUnitPlatform()
 }
 
+val expandedVersion = version.toString()
+
 tasks.processResources {
+    inputs.property("version", expandedVersion)
     filesMatching(listOf("fabric.mod.json", "META-INF/neoforge.mods.toml")) {
         expand(
-            "version" to project.version,
+            "version" to expandedVersion,
         )
     }
 }
 
-val supportMinecraftVersions = project.properties["minecraft"].toString().split(",")
+val supportMinecraftVersions = providers.gradleProperty("minecraft").get().split(",")
 
 modrinth {
     token.set(System.getenv("MODRINTH_TOKEN"))
@@ -100,7 +105,7 @@ modrinth {
     changelog.set(System.getenv("CHANGE_LOG"))
 }
 
-val curseForgeSpecialVersions = project.properties["curseforge"].toString().split(",")
+val curseForgeSpecialVersions = providers.gradleProperty("curseforge").get().split(",")
 
 curseforge {
     apiKey = if (System.getenv("CURSE_TOKEN") != null) System.getenv("CURSE_TOKEN") else "dummy"
