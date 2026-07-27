@@ -1,9 +1,11 @@
 # I18nAutoUpdateMod
 
 [![Modrinth](https://img.shields.io/modrinth/v/mEn7eS3l?logo=modrinth&label=Modrinth)](https://modrinth.com/mod/mEn7eS3l)
-[![License](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](https://github.com/ChouChiu/I18nAutoUpdateMod/blob/dev/LICENSE)
 
 一个更好的自动下载、更新、合并并应用「[简体中文资源包（Minecraft Mod Language Package）](https://github.com/CFPAOrg/Minecraft-Mod-Language-Package)」的客户端 Mod。
+
+本项目是 [CFPAOrg/I18nUpdateMod3](https://github.com/CFPAOrg/I18nUpdateMod3) 的二次开发版本，在原项目基础上重构了异步更新、下载源选择、资源包元数据和多 Loader 兼容逻辑。
 
 ## 功能
 
@@ -29,7 +31,7 @@
 
 ## 支持范围
 
-- Minecraft：声明支持 1.6.1 至 26.2，具体版本见 [`gradle.properties`](gradle.properties)
+- Minecraft：声明支持 1.6.1 至 26.2，具体版本见 [`gradle.properties`](https://github.com/ChouChiu/I18nAutoUpdateMod/blob/dev/gradle.properties)
 - Mod Loader：MinecraftForge、NeoForge、Fabric、Quilt
 - Java：遵循对应 Minecraft 与 Loader 的要求；Mod 字节码目标为 Java 8
 
@@ -43,8 +45,7 @@ Quilt 使用 Fabric 资源；NeoForge 使用 Forge 资源。缺少专用变体�
 
 缓存保存在系统数据目录下的 `.i18nautoupdatemod` 目录。旧版 `.i18nupdatemod` 数据会自动迁移，已有的新缓存不会被旧文件覆盖。
 
-> [!NOTE]
-> 网易版 Minecraft 不会执行在线资源包下载。
+注意：网易版 Minecraft 不会执行在线资源包下载。
 
 ## 开发
 
@@ -58,4 +59,4 @@ Quilt 使用 Fabric 资源；NeoForge 使用 Forge 资源。缺少专用变体�
 
 ## 许可证
 
-项目采用 [AGPL-3.0-or-later](LICENSE) 许可证。
+项目采用 [AGPL-3.0-or-later](https://github.com/ChouChiu/I18nAutoUpdateMod/blob/dev/LICENSE) 许可证。
