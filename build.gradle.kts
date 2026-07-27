@@ -2,7 +2,6 @@ plugins {
     id("java")
     id("com.gradleup.shadow") version "9.6.1"
     id("com.modrinth.minotaur") version "2.9.0"
-    id("io.github.CDAGaming.cursegradle") version "1.6.1"
 }
 
 group = "i18nautoupdatemod"
@@ -103,20 +102,4 @@ modrinth {
     loaders.set(listOf("fabric", "forge", "neoforge", "quilt"))
     syncBodyFrom.set(rootProject.file("README.md").readText())
     changelog.set(System.getenv("CHANGE_LOG"))
-}
-
-val curseForgeSpecialVersions = providers.gradleProperty("curseforge").get().split(",")
-
-curseforge {
-    apiKey = if (System.getenv("CURSE_TOKEN") != null) System.getenv("CURSE_TOKEN") else "dummy"
-    project {
-        id = "297404"
-        releaseType = "release"
-        mainArtifact(tasks["shadowJar"]) {
-            this.displayName = "I18nAutoUpdateMod ${project.version}"
-        }
-        gameVersionStrings.addAll(supportMinecraftVersions)
-        gameVersionStrings.addAll(curseForgeSpecialVersions)
-        changelog = if (System.getenv("CHANGE_LOG") != null) System.getenv("CHANGE_LOG") else "No change log"
-    }
 }
