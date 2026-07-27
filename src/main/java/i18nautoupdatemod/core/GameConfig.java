@@ -51,13 +51,12 @@ public class GameConfig {
         if (resourcePacks == null) {
             resourcePacks = new java.util.ArrayList<>();
         }
-        //If resource packs already contains target resource pack, nothing to do
-        if (resourcePacks.contains(resourcePack)) {
-            return;
-        }
-        //Remove other Minecraft Mod Language Pack
-        resourcePacks = resourcePacks.stream().filter(it -> !it.contains(baseName)).collect(Collectors.toList());
-        resourcePacks.add(resourcePack);
+        // Remove older or misplaced language packs, then place this pack at the
+        // beginning of options.txt's bottom-to-top priority list.
+        resourcePacks = resourcePacks.stream()
+                .filter(it -> !it.contains(baseName))
+                .collect(Collectors.toList());
+        resourcePacks.add(0, resourcePack);
         configs.put("resourcePacks", GSON.toJson(resourcePacks));
         Log.info(String.format("Resource Packs: %s", configs.get("resourcePacks")));
 //        configs.put("lang", "zh_cn");
