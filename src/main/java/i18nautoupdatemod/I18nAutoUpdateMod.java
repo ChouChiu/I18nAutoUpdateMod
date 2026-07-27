@@ -9,6 +9,7 @@ import i18nautoupdatemod.entity.GameAssetDetail;
 import i18nautoupdatemod.entity.GameMetaData;
 import i18nautoupdatemod.util.FileUtil;
 import i18nautoupdatemod.util.Log;
+import i18nautoupdatemod.util.Version;
 import org.jetbrains.annotations.NotNull;
 
 import java.nio.file.Files;
@@ -128,15 +129,24 @@ public final class I18nAutoUpdateMod {
     private static void registerResourcePack(
             Path minecraftPath, String minecraftVersion, String convertedFileName) {
         try {
-            int minecraftMinorVersion = Integer.parseInt(minecraftVersion.split("\\.")[1]);
             GameConfig config = new GameConfig(minecraftPath.resolve("options.txt"));
             config.addResourcePack(
                     "Minecraft-Mod-Language-Modpack",
-                    (minecraftMinorVersion <= 12 ? "" : "file/") + convertedFileName);
+                    resourcePackId(minecraftVersion, convertedFileName));
             config.writeToFile();
         } catch (Exception e) {
             Log.warning("Failed to register resource pack for the next launch: %s", e);
         }
+    }
+
+    static String resourcePackId(String minecraftVersion, String convertedFileName) {
+        Version version = Version.from(minecraftVersion);
+        Version filePrefixVersion = Version.from("1.13");
+        boolean usesModernPackId =
+                version != null
+                        && filePrefixVersion != null
+                        && version.compareTo(filePrefixVersion) >= 0;
+        return (usesModernPackId ? "file/" : "") + convertedFileName;
     }
 
     private static String getResourcePackDescription(
