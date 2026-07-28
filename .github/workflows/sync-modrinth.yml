@@ -19,7 +19,7 @@ jobs:
         run: |
           jq --null-input \
             --rawfile body README.md \
-            --arg description "Automatically downloads, updates, converts, and applies CFPA's Simplified Chinese translation resource pack." \
+            --arg description "自动下载、更新、转换并应用 CFPA 简体中文资源包。 Automatically downloads, updates, converts, and applies CFPA's Simplified Chinese translation resource pack." \
             '{
               description: $description,
               body: $body,
