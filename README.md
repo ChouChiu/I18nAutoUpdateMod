@@ -44,7 +44,7 @@
 ./gradlew clean test shadowJar
 ```
 
-构建产物位于 `build/libs/I18nAutoUpdateMod-1.0.0-all.jar`。
+构建产物位于 `build/libs/I18nAutoUpdateMod-<version>-all.jar`。
 
 ## 开源协议
 
@@ -95,7 +95,7 @@ Requires JDK 25 and Gradle Wrapper:
 ./gradlew clean test shadowJar
 ```
 
-Artifacts are output to `build/libs/I18nAutoUpdateMod-1.0.0-all.jar`.
+Artifacts are output to `build/libs/I18nAutoUpdateMod-<version>-all.jar`.
 
 ### License
 
