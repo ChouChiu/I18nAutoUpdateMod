@@ -31,7 +31,7 @@
 
 ## 支持范围
 
-- Minecraft：声明支持 1.6.1 至 26.2，具体版本见 [`gradle.properties`](https://github.com/ChouChiu/I18nAutoUpdateMod/blob/dev/gradle.properties)
+- Minecraft：声明支持 1.6.1 至 26.3，具体版本见 [`gradle.properties`](https://github.com/ChouChiu/I18nAutoUpdateMod/blob/dev/gradle.properties)
 - Mod Loader：MinecraftForge、NeoForge、Fabric、Quilt
 - 运行环境：仅客户端，不需要在服务器安装
 - Java：遵循对应 Minecraft 与 Loader 的要求；Mod 字节码目标为 Java 8
@@ -92,7 +92,7 @@ An existing cached pack remains available during the current startup. A pack dow
 
 ### Compatibility
 
-- Minecraft: declared support from 1.6.1 through 26.2
+- Minecraft: declared support from 1.6.1 through 26.3
 - Mod loaders: MinecraftForge, NeoForge, Fabric, and Quilt
 - Environment: client-side only; no server installation is required
 - Java: follows the requirements of the selected Minecraft version and loader; the mod targets Java 8 bytecode

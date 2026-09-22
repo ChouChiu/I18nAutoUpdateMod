@@ -31,14 +31,11 @@ class I18nAutoUpdateModTest {
         };
 
         long startNanos = System.nanoTime();
-        CompletableFuture<Void> first =
-                I18nAutoUpdateMod.startAsyncOnce(blockingUpdate);
-        long elapsedMillis =
-                TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
-        CompletableFuture<Void> second =
-                I18nAutoUpdateMod.startAsyncOnce(() -> {
-                    throw new AssertionError("duplicate update");
-                });
+        CompletableFuture<Void> first = I18nAutoUpdateMod.startAsyncOnce(blockingUpdate);
+        long elapsedMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+        CompletableFuture<Void> second = I18nAutoUpdateMod.startAsyncOnce(() -> {
+            throw new AssertionError("duplicate update");
+        });
 
         assertTrue(elapsedMillis < 500, "startAsyncOnce blocked for " + elapsedMillis + " ms");
         assertTrue(started.await(1, TimeUnit.SECONDS));
@@ -53,6 +50,9 @@ class I18nAutoUpdateModTest {
         assertEquals(
                 "file/" + fileName,
                 I18nAutoUpdateMod.resourcePackId("26.1.2", fileName));
+        assertEquals(
+                "file/" + fileName,
+                I18nAutoUpdateMod.resourcePackId("26.3", fileName));
         assertEquals(
                 "file/" + fileName,
                 I18nAutoUpdateMod.resourcePackId("1.13", fileName));

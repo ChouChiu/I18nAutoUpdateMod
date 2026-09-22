@@ -1,71 +1,168 @@
 {
   "gameMappings": [
     {
-      "packs": ["1.10.2", "1.12.2"],
+      "packs": [
+        "1.10.2",
+        "1.12.2"
+      ],
       "versions": [
-        {"range": "[1.6.1,1.8.9]", "packFormat": 1},
-        {"range": "[1.9,1.10.2]", "packFormat": 2}
+        {
+          "range": "[1.6.1,1.8.9]",
+          "packFormat": 1
+        },
+        {
+          "range": "[1.9,1.10.2]",
+          "packFormat": 2
+        }
       ]
     },
     {
-      "packs": ["1.12.2"],
+      "packs": [
+        "1.12.2"
+      ],
       "versions": [
-        {"range": "[1.11,1.12.2]", "packFormat": 3}
+        {
+          "range": "[1.11,1.12.2]",
+          "packFormat": 3
+        }
       ]
     },
     {
-      "packs": ["1.16"],
+      "packs": [
+        "1.16"
+      ],
       "versions": [
-        {"range": "[1.13,1.14.4]", "packFormat": 4},
-        {"range": "[1.15,1.16.1]", "packFormat": 5},
-        {"range": "[1.16.2,1.16.5]", "packFormat": 6}
+        {
+          "range": "[1.13,1.14.4]",
+          "packFormat": 4
+        },
+        {
+          "range": "[1.15,1.16.1]",
+          "packFormat": 5
+        },
+        {
+          "range": "[1.16.2,1.16.5]",
+          "packFormat": 6
+        }
       ]
     },
     {
-      "packs": ["1.18", "1.16"],
+      "packs": [
+        "1.18",
+        "1.16"
+      ],
       "versions": [
-        {"range": "[1.17,1.17.1]", "packFormat": 7}
+        {
+          "range": "[1.17,1.17.1]",
+          "packFormat": 7
+        }
       ]
     },
     {
-      "packs": ["1.18"],
+      "packs": [
+        "1.18"
+      ],
       "versions": [
-        {"range": "[1.18,1.18.2]", "packFormat": 8}
+        {
+          "range": "[1.18,1.18.2]",
+          "packFormat": 8
+        }
       ]
     },
     {
-      "packs": ["1.19", "1.18"],
+      "packs": [
+        "1.19",
+        "1.18"
+      ],
       "versions": [
-        {"range": "[1.19,1.19.2]", "packFormat": 9},
-        {"range": "[1.19.3,1.19.3]", "packFormat": 12},
-        {"range": "[1.19.4,1.19.4]", "packFormat": 13}
+        {
+          "range": "[1.19,1.19.2]",
+          "packFormat": 9
+        },
+        {
+          "range": "[1.19.3,1.19.3]",
+          "packFormat": 12
+        },
+        {
+          "range": "[1.19.4,1.19.4]",
+          "packFormat": 13
+        }
       ]
     },
     {
-      "packs": ["1.20", "1.19", "1.18"],
+      "packs": [
+        "1.20",
+        "1.19",
+        "1.18"
+      ],
       "versions": [
-        {"range": "[1.20,1.20.1]", "packFormat": 15},
-        {"range": "[1.20.2,1.20.2]", "packFormat": 18},
-        {"range": "[1.20.3,1.20.4]", "packFormat": 22},
-        {"range": "[1.20.5,1.20.6]", "packFormat": 32}
+        {
+          "range": "[1.20,1.20.1]",
+          "packFormat": 15
+        },
+        {
+          "range": "[1.20.2,1.20.2]",
+          "packFormat": 18
+        },
+        {
+          "range": "[1.20.3,1.20.4]",
+          "packFormat": 22
+        },
+        {
+          "range": "[1.20.5,1.20.6]",
+          "packFormat": 32
+        }
       ]
     },
     {
-      "packs": ["1.21", "1.20", "1.19"],
+      "packs": [
+        "1.21",
+        "1.20",
+        "1.19"
+      ],
       "versions": [
-        {"range": "[1.21,1.21.1]", "packFormat": 34},
-        {"range": "[1.21.2,1.21.3]", "packFormat": 42},
-        {"range": "[1.21.4,1.21.4]", "packFormat": 46},
-        {"range": "[1.21.5,1.21.5]", "packFormat": 55},
-        {"range": "[1.21.6,1.21.6]", "packFormat": 63},
-        {"range": "[1.21.7,1.21.8]", "packFormat": 64},
-        {"range": "[1.21.9,1.21.11]", "minFormat": 69, "maxFormat": 75}
+        {
+          "range": "[1.21,1.21.1]",
+          "packFormat": 34
+        },
+        {
+          "range": "[1.21.2,1.21.3]",
+          "packFormat": 42
+        },
+        {
+          "range": "[1.21.4,1.21.4]",
+          "packFormat": 46
+        },
+        {
+          "range": "[1.21.5,1.21.5]",
+          "packFormat": 55
+        },
+        {
+          "range": "[1.21.6,1.21.6]",
+          "packFormat": 63
+        },
+        {
+          "range": "[1.21.7,1.21.8]",
+          "packFormat": 64
+        },
+        {
+          "range": "[1.21.9,1.21.11]",
+          "minFormat": 69,
+          "maxFormat": 75
+        }
       ]
     },
     {
-      "packs": ["1.21","26.1"],
+      "packs": [
+        "1.21",
+        "26.1"
+      ],
       "versions": [
-        {"range": "[26.1,26.2]", "minFormat": 84, "maxFormat": 88}
+        {
+          "range": "[26.1,26.3]",
+          "minFormat": 84,
+          "maxFormat": 97
+        }
       ]
     }
   ],
