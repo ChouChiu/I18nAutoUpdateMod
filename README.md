@@ -22,7 +22,7 @@
 1. 前往 [Modrinth](https://modrinth.com/mod/mEn7eS3l) 或 [GitHub Releases](https://github.com/ChouChiu/I18nAutoUpdateMod/releases) 下载最新 JAR。
 2. 将 JAR 放入客户端的 `mods` 文件夹，启动游戏即可。
 
-本模组仅需在客户端安装，服务端无需安装。首次启动若下载了新汉化包，通常在下次进入游戏时加载生效；已有缓存会自动继续使用，无需手动在资源包界面调整。
+本模组仅需在客户端安装，服务端无需安装。首次启动且本地无缓存包时会有限等待数秒以直接载入汉化，若网络超时则在后台继续下载并在下次启动生效；日常已有缓存时完全异步检查更新，无需手动在资源包界面调整。
 
 ## 兼容性
 
@@ -32,6 +32,7 @@
 
 ## 补充说明
 
+- 启动等待配置：首次启动无本地资源包时的最大等待时间默认为 10 秒，可通过 JVM 参数 `-Di18nautoupdatemod.initialTimeout=<秒数>` 调整（设为 `0` 即完全不等待）。
 - 缓存路径：汉化包缓存存放于用户数据目录下的 `.i18nautoupdatemod` 中。若先前使用过原版模组，旧版 `.i18nupdatemod` 缓存会自动平滑迁移。
 - 网易版环境：检测到网易版 Minecraft 环境时将自动跳过在线下载，以遵守其开发者规范。
 
@@ -72,7 +73,7 @@ Refactored from [CFPAOrg/I18nUpdateMod3](https://github.com/CFPAOrg/I18nUpdateMo
 1. Download the latest JAR from [Modrinth](https://modrinth.com/mod/mEn7eS3l) or [GitHub Releases](https://github.com/ChouChiu/I18nAutoUpdateMod/releases).
 2. Place the JAR into your `.minecraft/mods` directory.
 
-Client-side only; do not install on dedicated servers. Newly downloaded packs take effect on the next game launch; existing cached packs are used immediately without manual intervention.
+Client-side only; do not install on dedicated servers. On first launch without local cache, the game waits a few seconds so the pack is loaded immediately, falling back to the next launch if the download times out; existing cached packs are used immediately without blocking launch.
 
 ### Compatibility
 
@@ -82,6 +83,7 @@ Client-side only; do not install on dedicated servers. Newly downloaded packs ta
 
 ### Notes
 
+- Startup timeout configuration: The maximum wait time on first launch without local cache defaults to 10 seconds and can be configured via `-Di18nautoupdatemod.initialTimeout=<seconds>` (set to `0` to disable waiting completely).
 - Cache location: Cached files are stored in `.i18nautoupdatemod` under the platform user data directory. Existing cache from the legacy `.i18nupdatemod` folder is migrated automatically.
 - NetEase client: Online downloads are automatically disabled when the NetEase Minecraft environment is detected.
 

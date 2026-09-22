@@ -23,6 +23,8 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -32,24 +34,39 @@ public final class I18nAutoUpdateMod {
     public static final String MOD_VERSION = implementationVersion();
     public static final Gson GSON = new Gson();
 
+    public static final String INITIAL_TIMEOUT_PROPERTY = "i18nautoupdatemod.initialTimeout";
+    public static final int DEFAULT_INITIAL_DOWNLOAD_TIMEOUT_SECONDS = 10;
+
     private static final Object UPDATE_LOCK = new Object();
-    private static final ExecutorService UPDATE_EXECUTOR =
-            Executors.newSingleThreadExecutor(runnable -> {
-                Thread thread = new Thread(runnable, "i18nautoupdatemod-updater");
-                thread.setDaemon(true);
-                return thread;
-            });
+    private static final ExecutorService UPDATE_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "i18nautoupdatemod-updater");
+        thread.setDaemon(true);
+        return thread;
+    });
     private static CompletableFuture<Void> updateFuture;
 
     private I18nAutoUpdateMod() {
+    }
+
+    static int getInitialDownloadTimeoutSeconds() {
+        String property = System.getProperty(INITIAL_TIMEOUT_PROPERTY);
+        if (property == null || property.trim().isEmpty()) {
+            return DEFAULT_INITIAL_DOWNLOAD_TIMEOUT_SECONDS;
+        }
+        try {
+            return Math.max(0, Integer.parseInt(property.trim()));
+        } catch (NumberFormatException e) {
+            Log.warning("Invalid %s value '%s', using default %d seconds: %s",
+                    INITIAL_TIMEOUT_PROPERTY, property, DEFAULT_INITIAL_DOWNLOAD_TIMEOUT_SECONDS, e);
+            return DEFAULT_INITIAL_DOWNLOAD_TIMEOUT_SECONDS;
+        }
     }
 
     public static CompletableFuture<Void> init(
             Path minecraftPath,
             String minecraftVersion,
             String loader,
-            @NotNull HashSet<String> modDomains
-    ) {
+            @NotNull HashSet<String> modDomains) {
         HashSet<String> domains = new HashSet<>(modDomains);
         domains.remove(MOD_ID);
         domains.remove(OLD_MOD_ID);
@@ -63,12 +80,42 @@ public final class I18nAutoUpdateMod {
             return CompletableFuture.completedFuture(null);
         }
 
-        String convertedFileName =
-                String.format("Minecraft-Mod-Language-Modpack-Converted-%s.zip", minecraftVersion);
-        registerResourcePack(minecraftPath, minecraftVersion, convertedFileName);
+        String convertedFileName = String.format("Minecraft-Mod-Language-Modpack-Converted-%s.zip", minecraftVersion);
+        Path convertedPackPath = minecraftPath.resolve("resourcepacks").resolve(convertedFileName);
+        boolean packAlreadyExists = Files.exists(convertedPackPath);
 
-        return startAsyncOnce(() -> updateResourcePack(
+        if (packAlreadyExists) {
+            registerResourcePack(minecraftPath, minecraftVersion, convertedFileName);
+        }
+
+        CompletableFuture<Void> future = startAsyncOnce(() -> updateResourcePack(
                 minecraftPath, minecraftVersion, loader, domains));
+
+        if (!packAlreadyExists) {
+            int timeoutSeconds = getInitialDownloadTimeoutSeconds();
+            if (timeoutSeconds > 0) {
+                Log.info(
+                        "First launch detected (resource pack missing). Waiting up to %d seconds for initial generation...",
+                        timeoutSeconds);
+                try {
+                    future.get(timeoutSeconds, TimeUnit.SECONDS);
+                } catch (TimeoutException e) {
+                    Log.warning(
+                            "Initial resource pack download timed out after %d seconds; continuing game launch. The pack will take effect on next launch.",
+                            timeoutSeconds);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    Log.warning("Initial resource pack download interrupted: %s", e);
+                } catch (Exception e) {
+                    Log.warning("Initial resource pack download failed: %s", e);
+                }
+            }
+            if (Files.exists(convertedPackPath)) {
+                registerResourcePack(minecraftPath, minecraftVersion, convertedFileName);
+            }
+        }
+
+        return future;
     }
 
     static CompletableFuture<Void> startAsyncOnce(Runnable update) {
@@ -92,8 +139,7 @@ public final class I18nAutoUpdateMod {
             Path minecraftPath,
             String minecraftVersion,
             String loader,
-            HashSet<String> modDomains
-    ) {
+            HashSet<String> modDomains) {
         try {
             Path storagePath = prepareStoragePath();
             Path resourcePackDirectory = minecraftPath.resolve("resourcepacks");
@@ -121,6 +167,7 @@ public final class I18nAutoUpdateMod {
                     metaData,
                     getResourcePackDescription(assets.downloads),
                     modDomains);
+            registerResourcePack(minecraftPath, minecraftVersion, assets.convertedFileName);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to update resource pack", e);
         }
@@ -135,17 +182,16 @@ public final class I18nAutoUpdateMod {
                     resourcePackId(minecraftVersion, convertedFileName));
             config.writeToFile();
         } catch (Exception e) {
-            Log.warning("Failed to register resource pack for the next launch: %s", e);
+            Log.warning("Failed to register resource pack: %s", e);
         }
     }
 
     static String resourcePackId(String minecraftVersion, String convertedFileName) {
         Version version = Version.from(minecraftVersion);
         Version filePrefixVersion = Version.from("1.13");
-        boolean usesModernPackId =
-                version != null
-                        && filePrefixVersion != null
-                        && version.compareTo(filePrefixVersion) >= 0;
+        boolean usesModernPackId = version != null
+                && filePrefixVersion != null
+                && version.compareTo(filePrefixVersion) >= 0;
         return (usesModernPackId ? "file/" : "") + convertedFileName;
     }
 
