@@ -91,15 +91,22 @@ tasks.processResources {
 
 val supportMinecraftVersions = providers.gradleProperty("minecraft").get().split(",")
 
+// Modrinth rejects the fabric loader on versions before 18w43b, so the same jar is
+// uploaded twice: once for Forge/NeoForge on every version, once for Fabric/Quilt on 1.14+
+val modrinthFabric = System.getenv("MODRINTH_TARGET") == "fabric"
+
 modrinth {
     token.set(System.getenv("MODRINTH_TOKEN"))
     projectId.set("mEn7eS3l")
     versionNumber.set("${project.version}")
-    versionName.set("I18nAutoUpdateMod ${project.version}")
+    versionName.set("I18nAutoUpdateMod ${project.version} " + if (modrinthFabric) "Fabric/Quilt" else "Forge/NeoForge")
     versionType.set("release")
     uploadFile.set(tasks["shadowJar"])
-    gameVersions.set(supportMinecraftVersions)
-    loaders.set(listOf("fabric", "forge", "neoforge", "quilt"))
+    gameVersions.set(
+        if (modrinthFabric) supportMinecraftVersions.drop(supportMinecraftVersions.indexOf("1.14"))
+        else supportMinecraftVersions
+    )
+    loaders.set(if (modrinthFabric) listOf("fabric", "quilt") else listOf("forge", "neoforge"))
     syncBodyFrom.set(rootProject.file("README.md").readText())
     changelog.set(System.getenv("CHANGE_LOG"))
 }

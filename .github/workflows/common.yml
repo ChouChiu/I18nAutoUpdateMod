@@ -49,6 +49,7 @@ jobs:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
         run: |
           ./gradlew modrinth modrinthSyncBody --info --stacktrace
+          MODRINTH_TARGET=fabric ./gradlew modrinth --info --stacktrace
       -
         name: Publish GitHub Release
         if: ${{ !cancelled() && steps.build.outcome == 'success' && !inputs.is-snapshot && inputs.release-tag != '' }}
