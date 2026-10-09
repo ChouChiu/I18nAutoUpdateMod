@@ -1,5 +1,6 @@
 package i18nautoupdatemod.core;
 
+import i18nautoupdatemod.entity.GameAssetDetail;
 import i18nautoupdatemod.entity.GameMapping;
 import i18nautoupdatemod.entity.GameMetaData;
 import i18nautoupdatemod.entity.I18nMetaData;
@@ -9,6 +10,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -16,6 +18,46 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class I18nConfigTest {
+    @Test
+    void mergeLoadersDownloadsEveryVariantWithCurrentLoaderFirst() {
+        ModConfig config = ModConfig.defaults();
+        config.defaultSource = "GitHub";
+
+        GameAssetDetail single = I18nConfig.getAssetDetail("1.17.1", "Fabric", config);
+        assertEquals(Arrays.asList(
+                        "Minecraft-Mod-Language-Modpack-1-18-Fabric.zip",
+                        "Minecraft-Mod-Language-Modpack-1-16-Fabric.zip"),
+                fileNames(single));
+
+        config.mergeLoaders = true;
+        GameAssetDetail fabric = I18nConfig.getAssetDetail("1.17.1", "Fabric", config);
+        assertEquals(Arrays.asList(
+                        "Minecraft-Mod-Language-Modpack-1-18-Fabric.zip",
+                        "Minecraft-Mod-Language-Modpack-1-18.zip",
+                        "Minecraft-Mod-Language-Modpack-1-16-Fabric.zip",
+                        "Minecraft-Mod-Language-Modpack-1-16.zip"),
+                fileNames(fabric));
+        assertEquals("1.18-fabric.md5", fabric.downloads.get(0).checksumFileName);
+        assertEquals("1.18.md5", fabric.downloads.get(1).checksumFileName);
+
+        GameAssetDetail forge = I18nConfig.getAssetDetail("1.20.1", "Forge", config);
+        assertEquals(Arrays.asList(
+                        "Minecraft-Mod-Language-Modpack-1-20.zip",
+                        "Minecraft-Mod-Language-Modpack-1-20-Fabric.zip",
+                        "Minecraft-Mod-Language-Modpack-1-19.zip",
+                        "Minecraft-Mod-Language-Modpack-1-18.zip",
+                        "Minecraft-Mod-Language-Modpack-1-18-Fabric.zip"),
+                fileNames(forge));
+
+        // Versions without a Fabric pack are unaffected.
+        GameAssetDetail legacy = I18nConfig.getAssetDetail("1.12.2", "Forge", config);
+        assertEquals(1, legacy.downloads.size());
+    }
+
+    private static List<String> fileNames(GameAssetDetail detail) {
+        return detail.downloads.stream().map(it -> it.fileName).collect(Collectors.toList());
+    }
+
     @Test
     void groupedMetadataReferencesKnownAssetsAndValidFormats() {
         I18nMetaData metadata = I18nConfig.getMetaDataForTests();

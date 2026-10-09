@@ -46,17 +46,28 @@ public class GameConfig {
     }
 
     public void addResourcePack(String baseName, String resourcePack) {
+        addResourcePack(baseName, resourcePack, true);
+    }
+
+    public void addResourcePack(String baseName, String resourcePack, boolean forceBottom) {
         List<String> resourcePacks = GSON.fromJson(
                 configs.computeIfAbsent("resourcePacks", it -> "[]"), STRING_LIST_TYPE);
         if (resourcePacks == null) {
             resourcePacks = new java.util.ArrayList<>();
         }
-        // Remove older or misplaced language packs, then place this pack at the
-        // beginning of options.txt's bottom-to-top priority list.
+        int existingIndex = -1;
+        for (int i = 0; i < resourcePacks.size(); i++) {
+            if (resourcePacks.get(i).contains(baseName)) {
+                existingIndex = i;
+                break;
+            }
+        }
+        // Remove older or misplaced language packs. options.txt lists packs from
+        // bottom to top priority, so index 0 is the bottom of the list.
         resourcePacks = resourcePacks.stream()
                 .filter(it -> !it.contains(baseName))
                 .collect(Collectors.toList());
-        resourcePacks.add(0, resourcePack);
+        resourcePacks.add(forceBottom || existingIndex < 0 ? 0 : existingIndex, resourcePack);
         configs.put("resourcePacks", GSON.toJson(resourcePacks));
         Log.info(String.format("Resource Packs: %s", configs.get("resourcePacks")));
 //        configs.put("lang", "zh_cn");

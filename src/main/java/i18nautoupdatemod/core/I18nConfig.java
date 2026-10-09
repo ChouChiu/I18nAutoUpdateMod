@@ -61,6 +61,11 @@ public final class I18nConfig {
     }
 
     public static GameAssetDetail getAssetDetail(String minecraftVersion, String loader) {
+        return getAssetDetail(minecraftVersion, loader, ModConfig.defaults());
+    }
+
+    public static GameAssetDetail getAssetDetail(
+            String minecraftVersion, String loader, ModConfig config) {
         GameMapping mapping = getGameMapping(minecraftVersion);
         GameAssetDetail result = new GameAssetDetail();
         result.downloads = new ArrayList<>();
@@ -73,14 +78,26 @@ public final class I18nConfig {
             }
 
             String selectedVariant = selectVariant(variants, assetVariant);
-            String fileName = variants.get(selectedVariant);
+            List<String> selectedVariants = new ArrayList<>();
+            selectedVariants.add(selectedVariant);
+            if (config.mergeLoaders) {
+                // The current loader's variant comes first so it wins on conflicts.
+                for (String variant : variants.keySet()) {
+                    if (!selectedVariants.contains(variant)) {
+                        selectedVariants.add(variant);
+                    }
+                }
+            }
 
-            GameAssetDetail.AssetDownloadDetail detail = new GameAssetDetail.AssetDownloadDetail();
-            detail.targetVersion = packVersion;
-            detail.fileName = fileName;
-            detail.checksumFileName = checksumFileName(packVersion, selectedVariant);
-            detail.sources = AssetUtil.resolveSources(detail.fileName, detail.checksumFileName);
-            result.downloads.add(detail);
+            for (String variant : selectedVariants) {
+                GameAssetDetail.AssetDownloadDetail detail = new GameAssetDetail.AssetDownloadDetail();
+                detail.targetVersion = packVersion;
+                detail.fileName = variants.get(variant);
+                detail.checksumFileName = checksumFileName(packVersion, variant);
+                detail.sources = AssetUtil.resolveSources(
+                        detail.fileName, detail.checksumFileName, config);
+                result.downloads.add(detail);
+            }
         }
 
         result.convertedFileName =

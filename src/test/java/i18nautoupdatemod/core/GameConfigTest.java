@@ -52,4 +52,36 @@ class GameConfigTest {
         assertEquals("file/user.zip", resourcePacks.get(2));
         assertEquals(3, resourcePacks.size());
     }
+
+    @Test
+    void keepsUserPositionWhenForceBottomIsDisabled() throws Exception {
+        Path options = temporaryDirectory.resolve("options.txt");
+        Files.write(
+                options,
+                ("resourcePacks:[\"vanilla\",\"file/Minecraft-Mod-Language-Modpack-old.zip\","
+                        + "\"file/user.zip\",\"file/Minecraft-Mod-Language-Modpack-dup.zip\"]\n")
+                        .getBytes(StandardCharsets.UTF_8));
+
+        GameConfig config = new GameConfig(options);
+        config.addResourcePack("Minecraft-Mod-Language-Modpack", "file/Minecraft-Mod-Language-Modpack-new.zip", false);
+
+        List<String> resourcePacks = GSON.fromJson(config.configs.get("resourcePacks"), STRING_LIST_TYPE);
+        assertEquals(3, resourcePacks.size());
+        assertEquals("vanilla", resourcePacks.get(0));
+        assertEquals("file/Minecraft-Mod-Language-Modpack-new.zip", resourcePacks.get(1));
+        assertEquals("file/user.zip", resourcePacks.get(2));
+    }
+
+    @Test
+    void addsNewPackAtBottomWhenForceBottomIsDisabled() throws Exception {
+        Path options = temporaryDirectory.resolve("options.txt");
+        Files.write(options, "resourcePacks:[\"vanilla\"]\n".getBytes(StandardCharsets.UTF_8));
+
+        GameConfig config = new GameConfig(options);
+        config.addResourcePack("Minecraft-Mod-Language-Modpack", "file/Minecraft-Mod-Language-Modpack-1.zip", false);
+
+        List<String> resourcePacks = GSON.fromJson(config.configs.get("resourcePacks"), STRING_LIST_TYPE);
+        assertEquals("file/Minecraft-Mod-Language-Modpack-1.zip", resourcePacks.get(0));
+        assertEquals("vanilla", resourcePacks.get(1));
+    }
 }

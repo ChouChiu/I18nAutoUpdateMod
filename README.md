@@ -15,7 +15,7 @@
 - 国内网络并发探测可用镜像源，海外直连 GitHub，遇到超时、404 或校验失败自动无感回退。
 - 下载完成并校验 MD5 后再原子替换现有文件，网络中断或下载失败绝不损坏已有缓存。
 - 根据当前游戏版本与 Loader 自动合并汉化资源，并生成适配当前版本的 `pack.mcmeta`（支持 1.6.1 到 26.3）。
-- 自动将汉化包注册在资源包列表最底层，不与玩家自定义的材质包抢优先级。
+- 默认自动将汉化包注册在资源包列表最底层，不与玩家自定义的材质包抢优先级。
 
 ## 安装与使用
 
@@ -30,9 +30,31 @@
 - 模组加载器：MinecraftForge、NeoForge、Fabric、Quilt
 - Java 环境：模组字节码目标为 Java 8，运行时遵循对应 Minecraft 与 Loader 的 Java 要求。
 
+## 设置
+
+首次启动后会在游戏目录生成 `config/i18nautoupdatemod.json`，修改后重启游戏生效
+
+```json
+{
+  "forceBottom": true,
+  "defaultSource": "auto",
+  "mirrorPriority": ["CFPA", "Community", "GitHub"],
+  "betaPack": false,
+  "mergeLoaders": false,
+  "initialTimeout": 10
+}
+```
+
+- `forceBottom`：是否每次启动都把汉化包强制移到资源包列表最底层，关闭后保留玩家手动调整的位置，仅首次添加时置底
+- `defaultSource`：默认下载源，可选 `auto` / `GitHub` / `CFPA` / `Community`，`auto` 为按地区自动测速选择
+- `mirrorPriority`：默认源之外的回退顺序，未列出的源自动追加到末尾
+- `betaPack`：是否叠加 CFPA [Project Hex](https://cfpa.cyan.cafe/project-hex/) 的 Beta 资源包，其中包含尚未合并的 PR 翻译，按条目覆盖在正式包之上，没有对应版本时只使用正式包
+- `mergeLoaders`：不区分加载器，同时下载并合并 Forge 与 Fabric 汉化包（Beta 包同理），翻译冲突时以当前加载器的版本为准
+- `initialTimeout`：首次启动无本地资源包时的最大等待秒数，设为 `0` 即完全不等待
+
 ## 补充说明
 
-- 启动等待配置：首次启动无本地资源包时的最大等待时间默认为 10 秒，可通过 JVM 参数 `-Di18nautoupdatemod.initialTimeout=<秒数>` 调整（设为 `0` 即完全不等待）。
+- 启动等待配置：JVM 参数 `-Di18nautoupdatemod.initialTimeout=<秒数>` 优先于配置文件中的 `initialTimeout`
 - 缓存路径：汉化包缓存存放于用户数据目录下的 `.i18nautoupdatemod` 中。若先前使用过原版模组，旧版 `.i18nupdatemod` 缓存会自动平滑迁移。
 - 网易版环境：检测到网易版 Minecraft 环境时将自动跳过在线下载，以遵守其开发者规范。
 
@@ -66,7 +88,7 @@ Refactored from [CFPAOrg/I18nUpdateMod3](https://github.com/CFPAOrg/I18nUpdateMo
 - Concurrently probes mainland China mirrors while preferring GitHub abroad, with automatic fallback on timeout, 404, or checksum mismatch.
 - Downloads to temporary files and verifies MD5 checksums before replacing, ensuring existing cache is never corrupted.
 - Dynamically merges language assets and generates the correct `pack.mcmeta` format for your Minecraft version (1.6.1 through 26.3).
-- Automatically placed at the bottom of the resource pack list, preserving custom texture pack priority.
+- Placed at the bottom of the resource pack list by default, preserving custom texture pack priority.
 
 ### Installation
 
@@ -81,9 +103,20 @@ Client-side only; do not install on dedicated servers. On first launch without l
 - Loaders: MinecraftForge, NeoForge, Fabric, and Quilt
 - Java: Targets Java 8 bytecode; runtime requirements depend on the selected Minecraft version and loader.
 
+### Settings
+
+A config file is generated at `config/i18nautoupdatemod.json` in the game directory on first launch, and changes take effect after restarting the game
+
+- `forceBottom`: Move the language pack to the bottom of the resource pack list on every launch, when disabled the position you set manually is kept and the pack is only placed at the bottom when first added
+- `defaultSource`: Preferred download source, one of `auto` / `GitHub` / `CFPA` / `Community`, where `auto` picks a source by location and probing
+- `mirrorPriority`: Fallback order of the other sources, unlisted sources are appended automatically
+- `betaPack`: Overlay the beta pack from CFPA [Project Hex](https://cfpa.cyan.cafe/project-hex/), which contains translations from pull requests that are not merged yet, merged key by key on top of the stable pack and skipped when no matching version exists
+- `mergeLoaders`: Ignore the loader and merge both the Forge and Fabric packs (beta packs included), with the current loader's translations winning on conflicts
+- `initialTimeout`: Maximum seconds to wait on first launch without local cache, set to `0` to disable waiting
+
 ### Notes
 
-- Startup timeout configuration: The maximum wait time on first launch without local cache defaults to 10 seconds and can be configured via `-Di18nautoupdatemod.initialTimeout=<seconds>` (set to `0` to disable waiting completely).
+- Startup timeout configuration: The JVM property `-Di18nautoupdatemod.initialTimeout=<seconds>` takes precedence over `initialTimeout` in the config file
 - Cache location: Cached files are stored in `.i18nautoupdatemod` under the platform user data directory. Existing cache from the legacy `.i18nupdatemod` folder is migrated automatically.
 - NetEase client: Online downloads are automatically disabled when the NetEase Minecraft environment is detected.
 

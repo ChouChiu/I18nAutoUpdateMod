@@ -1,8 +1,10 @@
 package i18nautoupdatemod;
 
 import com.google.gson.Gson;
+import i18nautoupdatemod.core.BetaResourcePack;
 import i18nautoupdatemod.core.GameConfig;
 import i18nautoupdatemod.core.I18nConfig;
+import i18nautoupdatemod.core.ModConfig;
 import i18nautoupdatemod.core.ResourcePack;
 import i18nautoupdatemod.core.ResourcePackConverter;
 import i18nautoupdatemod.entity.GameAssetDetail;
@@ -35,7 +37,7 @@ public final class I18nAutoUpdateMod {
     public static final Gson GSON = new Gson();
 
     public static final String INITIAL_TIMEOUT_PROPERTY = "i18nautoupdatemod.initialTimeout";
-    public static final int DEFAULT_INITIAL_DOWNLOAD_TIMEOUT_SECONDS = 10;
+    public static final int DEFAULT_INITIAL_DOWNLOAD_TIMEOUT_SECONDS = ModConfig.DEFAULT_INITIAL_TIMEOUT_SECONDS;
 
     private static final Object UPDATE_LOCK = new Object();
     private static final ExecutorService UPDATE_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
@@ -49,16 +51,24 @@ public final class I18nAutoUpdateMod {
     }
 
     static int getInitialDownloadTimeoutSeconds() {
+        return getInitialDownloadTimeoutSeconds(DEFAULT_INITIAL_DOWNLOAD_TIMEOUT_SECONDS);
+    }
+
+    /**
+     * The JVM property takes precedence over the configured value.
+     */
+    static int getInitialDownloadTimeoutSeconds(int configured) {
+        int fallback = Math.max(0, configured);
         String property = System.getProperty(INITIAL_TIMEOUT_PROPERTY);
         if (property == null || property.trim().isEmpty()) {
-            return DEFAULT_INITIAL_DOWNLOAD_TIMEOUT_SECONDS;
+            return fallback;
         }
         try {
             return Math.max(0, Integer.parseInt(property.trim()));
         } catch (NumberFormatException e) {
-            Log.warning("Invalid %s value '%s', using default %d seconds: %s",
-                    INITIAL_TIMEOUT_PROPERTY, property, DEFAULT_INITIAL_DOWNLOAD_TIMEOUT_SECONDS, e);
-            return DEFAULT_INITIAL_DOWNLOAD_TIMEOUT_SECONDS;
+            Log.warning("Invalid %s value '%s', using %d seconds: %s",
+                    INITIAL_TIMEOUT_PROPERTY, property, fallback, e);
+            return fallback;
         }
     }
 
@@ -80,19 +90,21 @@ public final class I18nAutoUpdateMod {
             return CompletableFuture.completedFuture(null);
         }
 
+        ModConfig config = ModConfig.load(minecraftPath);
+
         String convertedFileName = String.format("Minecraft-Mod-Language-Modpack-Converted-%s.zip", minecraftVersion);
         Path convertedPackPath = minecraftPath.resolve("resourcepacks").resolve(convertedFileName);
         boolean packAlreadyExists = Files.exists(convertedPackPath);
 
         if (packAlreadyExists) {
-            registerResourcePack(minecraftPath, minecraftVersion, convertedFileName);
+            registerResourcePack(minecraftPath, minecraftVersion, convertedFileName, config);
         }
 
         CompletableFuture<Void> future = startAsyncOnce(() -> updateResourcePack(
-                minecraftPath, minecraftVersion, loader, domains));
+                minecraftPath, minecraftVersion, loader, domains, config));
 
         if (!packAlreadyExists) {
-            int timeoutSeconds = getInitialDownloadTimeoutSeconds();
+            int timeoutSeconds = getInitialDownloadTimeoutSeconds(config.initialTimeout);
             if (timeoutSeconds > 0) {
                 Log.info(
                         "First launch detected (resource pack missing). Waiting up to %d seconds for initial generation...",
@@ -111,7 +123,7 @@ public final class I18nAutoUpdateMod {
                 }
             }
             if (Files.exists(convertedPackPath)) {
-                registerResourcePack(minecraftPath, minecraftVersion, convertedFileName);
+                registerResourcePack(minecraftPath, minecraftVersion, convertedFileName, config);
             }
         }
 
@@ -139,14 +151,15 @@ public final class I18nAutoUpdateMod {
             Path minecraftPath,
             String minecraftVersion,
             String loader,
-            HashSet<String> modDomains) {
+            HashSet<String> modDomains,
+            ModConfig config) {
         try {
             Path storagePath = prepareStoragePath();
             Path resourcePackDirectory = minecraftPath.resolve("resourcepacks");
             FileUtil.ensureDirectory(resourcePackDirectory);
             Log.debug("Local storage path: %s", storagePath);
 
-            GameAssetDetail assets = I18nConfig.getAssetDetail(minecraftVersion, loader);
+            GameAssetDetail assets = I18nConfig.getAssetDetail(minecraftVersion, loader, config);
             List<ResourcePack> languagePacks = new ArrayList<>();
             for (GameAssetDetail.AssetDownloadDetail detail : assets.downloads) {
                 ResourcePack languagePack = new ResourcePack(
@@ -157,30 +170,47 @@ public final class I18nAutoUpdateMod {
                 languagePacks.add(languagePack);
             }
 
+            List<Path> betaPacks = new ArrayList<>();
+            if (config.betaPack) {
+                BetaResourcePack beta = new BetaResourcePack(storagePath.resolve("beta"));
+                for (String targetVersion : targetVersions(assets.downloads)) {
+                    if (config.mergeLoaders) {
+                        betaPacks.addAll(beta.resolveAll(targetVersion, loader));
+                    } else {
+                        Path betaPack = beta.resolve(targetVersion, loader);
+                        if (betaPack != null) {
+                            betaPacks.add(betaPack);
+                        }
+                    }
+                }
+            }
+
             GameMetaData metaData = I18nConfig.getPackFormat(minecraftVersion);
             ResourcePackConverter converter = new ResourcePackConverter(
                     languagePacks,
+                    betaPacks,
                     assets.convertedFileName,
                     storagePath.resolve(minecraftVersion),
                     resourcePackDirectory);
             converter.convert(
                     metaData,
-                    getResourcePackDescription(assets.downloads),
+                    getResourcePackDescription(assets.downloads, !betaPacks.isEmpty()),
                     modDomains);
-            registerResourcePack(minecraftPath, minecraftVersion, assets.convertedFileName);
+            registerResourcePack(minecraftPath, minecraftVersion, assets.convertedFileName, config);
         } catch (Exception e) {
             throw new IllegalStateException("Failed to update resource pack", e);
         }
     }
 
     private static void registerResourcePack(
-            Path minecraftPath, String minecraftVersion, String convertedFileName) {
+            Path minecraftPath, String minecraftVersion, String convertedFileName, ModConfig config) {
         try {
-            GameConfig config = new GameConfig(minecraftPath.resolve("options.txt"));
-            config.addResourcePack(
+            GameConfig options = new GameConfig(minecraftPath.resolve("options.txt"));
+            options.addResourcePack(
                     "Minecraft-Mod-Language-Modpack",
-                    resourcePackId(minecraftVersion, convertedFileName));
-            config.writeToFile();
+                    resourcePackId(minecraftVersion, convertedFileName),
+                    config.forceBottom);
+            options.writeToFile();
         } catch (Exception e) {
             Log.warning("Failed to register resource pack: %s", e);
         }
@@ -195,18 +225,30 @@ public final class I18nAutoUpdateMod {
         return (usesModernPackId ? "file/" : "") + convertedFileName;
     }
 
+    static String getResourcePackDescription(
+            List<GameAssetDetail.AssetDownloadDetail> downloads, boolean withBeta) {
+        String description = getResourcePackDescription(downloads);
+        return withBeta ? description + "\n（含 Beta 预览翻译）" : description;
+    }
+
     private static String getResourcePackDescription(
             List<GameAssetDetail.AssetDownloadDetail> downloads) {
-        if (downloads.size() > 1) {
+        List<String> versions = targetVersions(downloads);
+        if (versions.size() > 1) {
             return String.format(
                     "该包由%s版本合并\n作者：CFPA团队及汉化项目贡献者",
-                    downloads.stream()
-                            .map(detail -> detail.targetVersion)
-                            .collect(Collectors.joining("和")));
+                    String.join("和", versions));
         }
         return String.format(
                 "该包对应的官方支持版本为%s\n作者：CFPA团队及汉化项目贡献者",
-                downloads.get(0).targetVersion);
+                versions.get(0));
+    }
+
+    private static List<String> targetVersions(List<GameAssetDetail.AssetDownloadDetail> downloads) {
+        return downloads.stream()
+                .map(detail -> detail.targetVersion)
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     public static Path prepareStoragePath() throws Exception {

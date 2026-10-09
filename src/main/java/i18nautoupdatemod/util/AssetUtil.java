@@ -1,5 +1,6 @@
 package i18nautoupdatemod.util;
 
+import i18nautoupdatemod.core.ModConfig;
 import i18nautoupdatemod.entity.AssetSource;
 
 import java.io.ByteArrayOutputStream;
@@ -20,6 +21,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 
 public final class AssetUtil {
     static final String GITHUB_ASSET_ROOT =
@@ -36,15 +38,23 @@ public final class AssetUtil {
 
     private static List<SourceRoot> createSourceRoots() {
         List<SourceRoot> roots = new ArrayList<>();
-        roots.add(new SourceRoot("GitHub", GITHUB_ASSET_ROOT, false));
-        roots.add(new SourceRoot("CFPA", CFPA_ASSET_ROOT, true));
-        roots.add(new SourceRoot("Community Mirror", COMMUNITY_MIRROR_ROOT, true));
+        roots.add(new SourceRoot(ModConfig.SOURCE_GITHUB, GITHUB_ASSET_ROOT, false));
+        roots.add(new SourceRoot(ModConfig.SOURCE_CFPA, CFPA_ASSET_ROOT, true));
+        roots.add(new SourceRoot(ModConfig.SOURCE_COMMUNITY, COMMUNITY_MIRROR_ROOT, true));
         return roots;
     }
 
     public static List<AssetSource> resolveSources(String fileName, String checksumFileName) {
+        return resolveSources(fileName, checksumFileName, ModConfig.defaults());
+    }
+
+    public static List<AssetSource> resolveSources(
+            String fileName, String checksumFileName, ModConfig config) {
         return orderSources(fileName, checksumFileName,
-                LocationDetectUtil.isMainlandChina(), SOURCE_ROOTS);
+                config.normalizedDefaultSource(),
+                config.normalizedMirrorPriority(),
+                LocationDetectUtil::isMainlandChina,
+                SOURCE_ROOTS);
     }
 
     static List<AssetSource> orderSources(
@@ -53,9 +63,48 @@ public final class AssetUtil {
             boolean mainlandChina,
             List<SourceRoot> sourceRoots
     ) {
-        if (!mainlandChina) {
+        return orderSources(fileName, checksumFileName, null, null,
+                () -> mainlandChina, sourceRoots);
+    }
+
+    /**
+     * @param defaultSource source tried first, or {@code null} to pick one by location and probing
+     * @param priority      fallback order of the remaining sources, or {@code null} to keep the
+     *                      built-in order
+     */
+    static List<AssetSource> orderSources(
+            String fileName,
+            String checksumFileName,
+            String defaultSource,
+            List<String> priority,
+            BooleanSupplier mainlandChina,
+            List<SourceRoot> sourceRoots
+    ) {
+        if (defaultSource != null) {
+            SourceRoot preferred = findRoot(sourceRoots, defaultSource);
+            if (preferred != null) {
+                Log.info("Configured default source for %s: %s", fileName, preferred.name);
+                List<SourceRoot> ordered = new ArrayList<>();
+                ordered.add(preferred);
+                ordered.addAll(sortByPriority(without(sourceRoots, preferred), priority));
+                return toAssetSources(ordered, fileName, checksumFileName);
+            }
+            Log.warning("Configured default source %s is unavailable, using auto", defaultSource);
+        }
+
+        if (!mainlandChina.getAsBoolean()) {
             Log.info("Outside mainland China: preferring GitHub for %s", fileName);
-            return toAssetSources(sourceRoots, fileName, checksumFileName);
+            if (priority == null || sourceRoots.isEmpty()) {
+                return toAssetSources(sourceRoots, fileName, checksumFileName);
+            }
+            SourceRoot preferred = sourceRoots.stream()
+                    .filter(root -> !root.domestic)
+                    .findFirst()
+                    .orElse(sourceRoots.get(0));
+            List<SourceRoot> ordered = new ArrayList<>();
+            ordered.add(preferred);
+            ordered.addAll(sortByPriority(without(sourceRoots, preferred), priority));
+            return toAssetSources(ordered, fileName, checksumFileName);
         }
 
         List<SourceRoot> domestic = new ArrayList<>();
@@ -68,23 +117,76 @@ public final class AssetUtil {
         List<ProbeResult> results = probe(checksumFileName, domestic);
         results.sort(Comparator.comparingLong(result -> result.elapsedNanos));
 
-        List<SourceRoot> ordered = new ArrayList<>();
+        List<SourceRoot> reachable = new ArrayList<>();
         for (ProbeResult result : results) {
             if (result.reachable) {
-                ordered.add(result.root);
+                reachable.add(result.root);
             }
         }
-        for (SourceRoot root : domestic) {
-            if (!ordered.contains(root)) {
-                ordered.add(root);
+
+        List<SourceRoot> ordered = new ArrayList<>();
+        if (priority == null) {
+            ordered.addAll(reachable);
+            for (SourceRoot root : domestic) {
+                if (!ordered.contains(root)) {
+                    ordered.add(root);
+                }
+            }
+            ordered.addAll(fallback);
+        } else if (!sourceRoots.isEmpty()) {
+            SourceRoot preferred = reachable.isEmpty()
+                    ? sortByPriority(sourceRoots, priority).get(0)
+                    : reachable.get(0);
+            ordered.add(preferred);
+            List<SourceRoot> rest = sortByPriority(without(sourceRoots, preferred), priority);
+            // Domestic sources that failed the probe are kept only as a last resort.
+            for (SourceRoot root : rest) {
+                if (!domestic.contains(root) || reachable.contains(root)) {
+                    ordered.add(root);
+                }
+            }
+            for (SourceRoot root : rest) {
+                if (!ordered.contains(root)) {
+                    ordered.add(root);
+                }
             }
         }
-        ordered.addAll(fallback);
 
         if (!ordered.isEmpty()) {
             Log.info("Preferred source for %s: %s", fileName, ordered.get(0).name);
         }
         return toAssetSources(ordered, fileName, checksumFileName);
+    }
+
+    private static SourceRoot findRoot(List<SourceRoot> roots, String name) {
+        for (SourceRoot root : roots) {
+            if (root.name.equalsIgnoreCase(name)) {
+                return root;
+            }
+        }
+        return null;
+    }
+
+    private static List<SourceRoot> without(List<SourceRoot> roots, SourceRoot excluded) {
+        List<SourceRoot> result = new ArrayList<>(roots);
+        result.remove(excluded);
+        return result;
+    }
+
+    private static List<SourceRoot> sortByPriority(List<SourceRoot> roots, List<String> priority) {
+        List<SourceRoot> result = new ArrayList<>(roots);
+        if (priority == null) {
+            return result;
+        }
+        result.sort(Comparator.comparingInt(root -> {
+            for (int i = 0; i < priority.size(); i++) {
+                if (priority.get(i).equalsIgnoreCase(root.name)) {
+                    return i;
+                }
+            }
+            return priority.size();
+        }));
+        return result;
     }
 
     private static List<ProbeResult> probe(String checksumFileName, List<SourceRoot> roots) {

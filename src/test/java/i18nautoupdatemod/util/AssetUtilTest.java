@@ -59,6 +59,48 @@ class AssetUtilTest {
     }
 
     @Test
+    void configuredDefaultSourceSkipsDetectionAndFollowsPriority() {
+        List<AssetUtil.SourceRoot> roots = Arrays.asList(
+                new AssetUtil.SourceRoot("GitHub", "https://example.invalid/github/", false),
+                new AssetUtil.SourceRoot("CFPA", "https://example.invalid/cfpa/", true),
+                new AssetUtil.SourceRoot("Community Mirror", "https://example.invalid/community/", true)
+        );
+        List<AssetSource> ordered = AssetUtil.orderSources(
+                "pack.zip", "pack.md5", "Community Mirror",
+                Arrays.asList("GitHub", "CFPA", "Community Mirror"),
+                () -> {
+                    throw new AssertionError("location detection must be skipped");
+                },
+                roots);
+        assertEquals("Community Mirror", ordered.get(0).name);
+        assertEquals("GitHub", ordered.get(1).name);
+        assertEquals("CFPA", ordered.get(2).name);
+    }
+
+    @Test
+    void autoOrderingUsesPriorityAfterPreferredSource() throws Exception {
+        fastServer = checksumServer(0);
+        List<AssetUtil.SourceRoot> roots = Arrays.asList(
+                new AssetUtil.SourceRoot("GitHub", "https://example.invalid/github/", false),
+                new AssetUtil.SourceRoot("Down", "http://127.0.0.1:1/", true),
+                new AssetUtil.SourceRoot("Fast", baseUrl(fastServer), true)
+        );
+        List<String> priority = Arrays.asList("Down", "Fast", "GitHub");
+
+        List<AssetSource> mainland = AssetUtil.orderSources(
+                "pack.zip", "pack.md5", null, priority, () -> true, roots);
+        assertEquals("Fast", mainland.get(0).name);
+        assertEquals("GitHub", mainland.get(1).name);
+        assertEquals("Down", mainland.get(2).name);
+
+        List<AssetSource> overseas = AssetUtil.orderSources(
+                "pack.zip", "pack.md5", null, priority, () -> false, roots);
+        assertEquals("GitHub", overseas.get(0).name);
+        assertEquals("Down", overseas.get(1).name);
+        assertEquals("Fast", overseas.get(2).name);
+    }
+
+    @Test
     void readTimeoutDoesNotHangSourceSelection() throws Exception {
         slowServer = checksumServer(500);
         assertThrows(IOException.class, () -> AssetUtil.getString(
