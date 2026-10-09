@@ -14,6 +14,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Callable;
@@ -28,6 +29,9 @@ public final class AssetUtil {
             "https://github.com/CFPAOrg/Minecraft-Mod-Language-Package/releases/download/autobuild/";
     static final String CFPA_ASSET_ROOT = "http://downloader1.meitangdehulu.com:22943/";
     static final String COMMUNITY_MIRROR_ROOT = "http://8.137.167.65:64684/";
+    static final String AUTOMERGE_ASSET_ROOT =
+            "https://github.com/ChouChiu/CFPA-AutoMerge/releases/download/automerge/";
+    static final String AUTOMERGE_SOURCE_NAME = "AutoMerge";
 
     private static final int CONNECT_TIMEOUT_MILLIS = (int) TimeUnit.SECONDS.toMillis(5);
     private static final int READ_TIMEOUT_MILLIS = (int) TimeUnit.SECONDS.toMillis(30);
@@ -50,11 +54,26 @@ public final class AssetUtil {
 
     public static List<AssetSource> resolveSources(
             String fileName, String checksumFileName, ModConfig config) {
-        return orderSources(fileName, checksumFileName,
+        List<AssetSource> sources = orderSources(fileName, checksumFileName,
                 config.normalizedDefaultSource(),
                 config.normalizedMirrorPriority(),
                 LocationDetectUtil::isMainlandChina,
                 SOURCE_ROOTS);
+        return config.betaPack ? withBetaSource(sources, fileName, checksumFileName) : sources;
+    }
+
+    /**
+     * Puts the AutoMerge release, built from every open pull request, in front of the stable
+     * sources, which stay as the fallback.
+     */
+    static List<AssetSource> withBetaSource(
+            List<AssetSource> sources, String fileName, String checksumFileName) {
+        List<AssetSource> result = new ArrayList<>();
+        result.addAll(toAssetSources(
+                Collections.singletonList(new SourceRoot(AUTOMERGE_SOURCE_NAME, AUTOMERGE_ASSET_ROOT, false)),
+                fileName, checksumFileName));
+        result.addAll(sources);
+        return result;
     }
 
     static List<AssetSource> orderSources(

@@ -9,17 +9,8 @@ import java.security.NoSuchAlgorithmException;
 
 public class DigestUtil {
     public static String md5Hex(Path file) throws IOException, NoSuchAlgorithmException {
-        return digestHex(file, "MD5");
-    }
-
-    public static String sha256Hex(Path file) throws IOException, NoSuchAlgorithmException {
-        return digestHex(file, "SHA-256");
-    }
-
-    private static String digestHex(Path file, String algorithm)
-            throws IOException, NoSuchAlgorithmException {
         try (InputStream is = Files.newInputStream(file)) {
-            MessageDigest dig = MessageDigest.getInstance(algorithm);
+            MessageDigest dig = MessageDigest.getInstance("MD5");
 
             final byte[] buf = new byte[114514];
 

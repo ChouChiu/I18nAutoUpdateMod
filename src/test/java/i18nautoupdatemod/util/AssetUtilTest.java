@@ -1,6 +1,7 @@
 package i18nautoupdatemod.util;
 
 import com.sun.net.httpserver.HttpServer;
+import i18nautoupdatemod.core.ModConfig;
 import i18nautoupdatemod.entity.AssetSource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AssetUtilTest {
     private HttpServer fastServer;
@@ -98,6 +100,22 @@ class AssetUtilTest {
         assertEquals("GitHub", overseas.get(0).name);
         assertEquals("Down", overseas.get(1).name);
         assertEquals("Fast", overseas.get(2).name);
+    }
+
+    @Test
+    void betaPackPutsAutoMergeFirstAndKeepsStableFallback() {
+        ModConfig config = ModConfig.defaults();
+        config.defaultSource = "GitHub";
+        List<AssetSource> stable = AssetUtil.resolveSources("pack.zip", "pack.md5", config);
+        assertTrue(stable.stream().noneMatch(source -> source.name.equals("AutoMerge")));
+
+        config.betaPack = true;
+        List<AssetSource> beta = AssetUtil.resolveSources("pack.zip", "pack.md5", config);
+        assertEquals(stable.size() + 1, beta.size());
+        assertEquals("AutoMerge", beta.get(0).name);
+        assertEquals(AssetUtil.AUTOMERGE_ASSET_ROOT + "pack.zip", beta.get(0).fileUrl);
+        assertEquals(AssetUtil.AUTOMERGE_ASSET_ROOT + "pack.md5", beta.get(0).checksumUrl);
+        assertEquals("GitHub", beta.get(1).name);
     }
 
     @Test

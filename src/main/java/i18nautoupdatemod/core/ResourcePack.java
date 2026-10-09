@@ -15,15 +15,23 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 public class ResourcePack {
-    private static final long UPDATE_TIME_GAP = TimeUnit.DAYS.toMillis(1);
+    public static final long DEFAULT_UPDATE_GAP_MILLIS = TimeUnit.DAYS.toMillis(1);
 
     private final String filename;
     private final Path cacheFile;
     private final Path downloadFile;
+    private final long updateGapMillis;
 
     public ResourcePack(String filename, Path resourcePackDirectory, Path cacheDirectory)
             throws IOException {
+        this(filename, resourcePackDirectory, cacheDirectory, DEFAULT_UPDATE_GAP_MILLIS);
+    }
+
+    public ResourcePack(
+            String filename, Path resourcePackDirectory, Path cacheDirectory, long updateGapMillis)
+            throws IOException {
         this.filename = filename;
+        this.updateGapMillis = updateGapMillis;
         this.cacheFile = cacheDirectory.resolve(filename);
         this.downloadFile = cacheDirectory.resolve(filename + ".part");
         FileUtil.ensureDirectory(cacheDirectory);
@@ -79,7 +87,7 @@ public class ResourcePack {
     private boolean wasUpdatedRecently() throws IOException {
         return Files.exists(cacheFile)
                 && Files.getLastModifiedTime(cacheFile).toMillis()
-                > System.currentTimeMillis() - UPDATE_TIME_GAP;
+                > System.currentTimeMillis() - updateGapMillis;
     }
 
     private String getRemoteMd5(AssetSource source) throws IOException {

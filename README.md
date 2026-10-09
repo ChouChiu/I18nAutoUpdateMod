@@ -48,8 +48,8 @@
 - `forceBottom`：是否每次启动都把汉化包强制移到资源包列表最底层，关闭后保留玩家手动调整的位置，仅首次添加时置底
 - `defaultSource`：默认下载源，可选 `auto` / `GitHub` / `CFPA` / `Community`，`auto` 为按地区自动测速选择
 - `mirrorPriority`：默认源之外的回退顺序，未列出的源自动追加到末尾
-- `betaPack`：是否叠加 CFPA [Project Hex](https://cfpa.cyan.cafe/project-hex/) 的 Beta 资源包，其中包含尚未合并的 PR 翻译，按条目覆盖在正式包之上，没有对应版本时只使用正式包
-- `mergeLoaders`：不区分加载器，同时下载并合并 Forge 与 Fabric 汉化包（Beta 包同理），翻译冲突时以当前加载器的版本为准
+- `betaPack`：是否使用 Beta 资源包，优先下载 [CFPA-AutoMerge](https://github.com/ChouChiu/CFPA-AutoMerge) 每 6 小时合并全部未合并 PR 后打包的版本，下载失败时回退正式包
+- `mergeLoaders`：不区分加载器，同时下载并合并 Forge 与 Fabric 汉化包，翻译冲突时以当前加载器的版本为准
 - `initialTimeout`：首次启动无本地资源包时的最大等待秒数，设为 `0` 即完全不等待
 
 ## 补充说明
@@ -110,8 +110,8 @@ A config file is generated at `config/i18nautoupdatemod.json` in the game direct
 - `forceBottom`: Move the language pack to the bottom of the resource pack list on every launch, when disabled the position you set manually is kept and the pack is only placed at the bottom when first added
 - `defaultSource`: Preferred download source, one of `auto` / `GitHub` / `CFPA` / `Community`, where `auto` picks a source by location and probing
 - `mirrorPriority`: Fallback order of the other sources, unlisted sources are appended automatically
-- `betaPack`: Overlay the beta pack from CFPA [Project Hex](https://cfpa.cyan.cafe/project-hex/), which contains translations from pull requests that are not merged yet, merged key by key on top of the stable pack and skipped when no matching version exists
-- `mergeLoaders`: Ignore the loader and merge both the Forge and Fabric packs (beta packs included), with the current loader's translations winning on conflicts
+- `betaPack`: Prefer the beta packs from [CFPA-AutoMerge](https://github.com/ChouChiu/CFPA-AutoMerge), rebuilt every 6 hours with all open pull requests merged, falling back to the stable packs when the download fails
+- `mergeLoaders`: Ignore the loader and merge both the Forge and Fabric packs, with the current loader's translations winning on conflicts
 - `initialTimeout`: Maximum seconds to wait on first launch without local cache, set to `0` to disable waiting
 
 ### Notes

@@ -1,7 +1,6 @@
 package i18nautoupdatemod;
 
 import com.google.gson.Gson;
-import i18nautoupdatemod.core.BetaResourcePack;
 import i18nautoupdatemod.core.GameConfig;
 import i18nautoupdatemod.core.I18nConfig;
 import i18nautoupdatemod.core.ModConfig;
@@ -38,6 +37,8 @@ public final class I18nAutoUpdateMod {
 
     public static final String INITIAL_TIMEOUT_PROPERTY = "i18nautoupdatemod.initialTimeout";
     public static final int DEFAULT_INITIAL_DOWNLOAD_TIMEOUT_SECONDS = ModConfig.DEFAULT_INITIAL_TIMEOUT_SECONDS;
+
+    static final long BETA_UPDATE_GAP_MILLIS = TimeUnit.HOURS.toMillis(6);
 
     private static final Object UPDATE_LOCK = new Object();
     private static final ExecutorService UPDATE_EXECUTOR = Executors.newSingleThreadExecutor(runnable -> {
@@ -160,41 +161,29 @@ public final class I18nAutoUpdateMod {
             Log.debug("Local storage path: %s", storagePath);
 
             GameAssetDetail assets = I18nConfig.getAssetDetail(minecraftVersion, loader, config);
+            // Beta packs share file names with stable ones, so they need their own cache.
+            Path cacheRoot = config.betaPack ? storagePath.resolve("beta") : storagePath;
+            long updateGap = config.betaPack ? BETA_UPDATE_GAP_MILLIS : ResourcePack.DEFAULT_UPDATE_GAP_MILLIS;
             List<ResourcePack> languagePacks = new ArrayList<>();
             for (GameAssetDetail.AssetDownloadDetail detail : assets.downloads) {
                 ResourcePack languagePack = new ResourcePack(
                         detail.fileName,
                         resourcePackDirectory,
-                        storagePath.resolve(detail.targetVersion));
+                        cacheRoot.resolve(detail.targetVersion),
+                        updateGap);
                 languagePack.checkUpdate(detail.sources);
                 languagePacks.add(languagePack);
-            }
-
-            List<Path> betaPacks = new ArrayList<>();
-            if (config.betaPack) {
-                BetaResourcePack beta = new BetaResourcePack(storagePath.resolve("beta"));
-                for (String targetVersion : targetVersions(assets.downloads)) {
-                    if (config.mergeLoaders) {
-                        betaPacks.addAll(beta.resolveAll(targetVersion, loader));
-                    } else {
-                        Path betaPack = beta.resolve(targetVersion, loader);
-                        if (betaPack != null) {
-                            betaPacks.add(betaPack);
-                        }
-                    }
-                }
             }
 
             GameMetaData metaData = I18nConfig.getPackFormat(minecraftVersion);
             ResourcePackConverter converter = new ResourcePackConverter(
                     languagePacks,
-                    betaPacks,
                     assets.convertedFileName,
                     storagePath.resolve(minecraftVersion),
                     resourcePackDirectory);
             converter.convert(
                     metaData,
-                    getResourcePackDescription(assets.downloads, !betaPacks.isEmpty()),
+                    getResourcePackDescription(assets.downloads, config.betaPack),
                     modDomains);
             registerResourcePack(minecraftPath, minecraftVersion, assets.convertedFileName, config);
         } catch (Exception e) {
@@ -228,7 +217,7 @@ public final class I18nAutoUpdateMod {
     static String getResourcePackDescription(
             List<GameAssetDetail.AssetDownloadDetail> downloads, boolean withBeta) {
         String description = getResourcePackDescription(downloads);
-        return withBeta ? description + "\n（含 Beta 预览翻译）" : description;
+        return withBeta ? description + "\n（Beta：含未合并 PR 的翻译）" : description;
     }
 
     private static String getResourcePackDescription(
