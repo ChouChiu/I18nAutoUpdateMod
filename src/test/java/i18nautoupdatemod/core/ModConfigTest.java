@@ -9,6 +9,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -71,6 +74,30 @@ class ModConfigTest {
 
         config.defaultSource = "nowhere";
         assertNull(config.normalizedDefaultSource());
+    }
+
+    @Test
+    void readsUserOptionsPortedFromUpstream() throws Exception {
+        write("{\"cacheTtlHours\":0,\"excludeMods\":[\" Create \",\"\",null],"
+                + "\"onlyWhenChineseSystem\":true}");
+
+        ModConfig config = ModConfig.load(minecraftPath);
+
+        assertEquals(0, config.cacheTtlMillis());
+        assertEquals(new HashSet<>(Arrays.asList("create")), config.normalizedExcludeMods());
+        assertTrue(config.onlyWhenChineseSystem);
+        assertTrue(ModConfig.isChineseLocale(Locale.SIMPLIFIED_CHINESE));
+        assertTrue(ModConfig.isChineseLocale(Locale.TRADITIONAL_CHINESE));
+        assertFalse(ModConfig.isChineseLocale(Locale.US));
+    }
+
+    @Test
+    void defaultsMatchPreviousBehavior() {
+        ModConfig config = ModConfig.defaults();
+
+        assertEquals(TimeUnit.DAYS.toMillis(1), config.cacheTtlMillis());
+        assertTrue(config.normalizedExcludeMods().isEmpty());
+        assertTrue(config.isLanguageAllowed());
     }
 
     private Path file() {

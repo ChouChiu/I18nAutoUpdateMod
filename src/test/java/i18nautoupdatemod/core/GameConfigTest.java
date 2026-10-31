@@ -12,6 +12,8 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GameConfigTest {
     private static final Gson GSON = new Gson();
@@ -83,5 +85,37 @@ class GameConfigTest {
         List<String> resourcePacks = GSON.fromJson(config.configs.get("resourcePacks"), STRING_LIST_TYPE);
         assertEquals("file/Minecraft-Mod-Language-Modpack-1.zip", resourcePacks.get(0));
         assertEquals("vanilla", resourcePacks.get(1));
+    }
+
+    @Test
+    void repeatedResourcePacksLineKeepsLastValue() throws Exception {
+        Path options = temporaryDirectory.resolve("options.txt");
+        Files.write(
+                options,
+                ("resourcePacks:[\"file/first.zip\"]\n"
+                        + "resourcePacks:[\"file/second.zip\"]\n")
+                        .getBytes(StandardCharsets.UTF_8));
+
+        GameConfig config = new GameConfig(options);
+        config.addResourcePack("Minecraft-Mod-Language-Modpack", "file/Minecraft-Mod-Language-Modpack-a.zip");
+
+        List<String> resourcePacks = GSON.fromJson(config.configs.get("resourcePacks"), STRING_LIST_TYPE);
+        assertEquals("file/second.zip", resourcePacks.get(1));
+        assertEquals(2, resourcePacks.size());
+    }
+
+    @Test
+    void reportsWhetherResourcePackListChanged() throws Exception {
+        Path options = temporaryDirectory.resolve("options.txt");
+        Files.write(
+                options,
+                "resourcePacks:[\"file/Minecraft-Mod-Language-Modpack-a.zip\",\"vanilla\"]\n"
+                        .getBytes(StandardCharsets.UTF_8));
+
+        GameConfig config = new GameConfig(options);
+        assertFalse(config.addResourcePack(
+                "Minecraft-Mod-Language-Modpack", "file/Minecraft-Mod-Language-Modpack-a.zip"));
+        assertTrue(config.addResourcePack(
+                "Minecraft-Mod-Language-Modpack", "file/Minecraft-Mod-Language-Modpack-b.zip"));
     }
 }

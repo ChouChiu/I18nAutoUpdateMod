@@ -88,6 +88,17 @@ class ResourcePackConverterTest {
         assertArrayEquals(existing, Files.readAllBytes(resourcePacks.resolve("converted.zip")));
     }
 
+    @Test
+    void writesPackMetaAsAscii() {
+        byte[] output = ResourcePackConverter.toAsciiJson("{\"description\":\"作者\"}");
+
+        for (byte value : output) {
+            assertTrue(value >= 0);
+        }
+        assertEquals("作者", JsonParser.parseString(new String(output, StandardCharsets.US_ASCII))
+                .getAsJsonObject().get("description").getAsString());
+    }
+
     private static JsonObject convert(String input, GameMetaData metadata) {
         byte[] output = ResourcePackConverter.convertPackMeta(
                 new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),

@@ -61,8 +61,13 @@ public class ResourcePackConverter {
                         ZipEntry sourceEntry = entries.nextElement();
                         String name = sourceEntry.getName();
                         String[] parts = name.split("/");
+                        // Keep Minecraft's baseline fixes such as fonts, but not its language files.
+                        boolean minecraftFix = parts.length >= 2
+                                && "minecraft".equals(parts[1])
+                                && (parts.length < 3 || !"lang".equals(parts[2]));
                         if (parts.length >= 2
                                 && "assets".equals(parts[0])
+                                && !minecraftFix
                                 && !modDomains.contains(parts[1])) {
                             continue;
                         }
@@ -119,6 +124,23 @@ public class ResourcePackConverter {
             pack.remove("min_format");
             pack.remove("max_format");
         }
-        return GSON.toJson(root).getBytes(StandardCharsets.UTF_8);
+        return toAsciiJson(GSON.toJson(root));
+    }
+
+    /**
+     * Older clients read pack.mcmeta with the platform charset, so non-ASCII
+     * characters are written as JSON unicode escapes.
+     */
+    static byte[] toAsciiJson(String json) {
+        StringBuilder builder = new StringBuilder(json.length());
+        for (int i = 0; i < json.length(); i++) {
+            char character = json.charAt(i);
+            if (character <= 0x7F) {
+                builder.append(character);
+            } else {
+                builder.append(String.format("\\u%04x", (int) character));
+            }
+        }
+        return builder.toString().getBytes(StandardCharsets.US_ASCII);
     }
 }

@@ -41,7 +41,10 @@
   "mirrorPriority": ["CFPA", "Community", "GitHub"],
   "betaPack": false,
   "mergeLoaders": false,
-  "initialTimeout": 10
+  "initialTimeout": 10,
+  "cacheTtlHours": 24,
+  "excludeMods": [],
+  "onlyWhenChineseSystem": false
 }
 ```
 
@@ -51,6 +54,9 @@
 - `betaPack`：是否使用 Beta 资源包，优先下载 [CFPA-AutoMerge](https://github.com/ChouChiu/CFPA-AutoMerge) 每 6 小时合并全部未合并 PR 后打包的版本，下载失败时回退正式包
 - `mergeLoaders`：不区分加载器，同时下载并合并 Forge 与 Fabric 汉化包，翻译冲突时以当前加载器的版本为准
 - `initialTimeout`：首次启动无本地资源包时的最大等待秒数，设为 `0` 即完全不等待
+- `cacheTtlHours`：更新检查间隔（小时），设为 `0` 即每次启动都检查，Beta 资源包最长 6 小时检查一次
+- `excludeMods`：不参与汉化的模组命名空间，如 `["create"]`
+- `onlyWhenChineseSystem`：仅在操作系统区域设置为中文时运行，非中文系统下不联网、不下载、不改动 `options.txt`，判定依据是系统区域设置而非游戏内语言，适合整合包作者随包分发
 
 ## 补充说明
 
@@ -113,6 +119,9 @@ A config file is generated at `config/i18nautoupdatemod.json` in the game direct
 - `betaPack`: Prefer the beta packs from [CFPA-AutoMerge](https://github.com/ChouChiu/CFPA-AutoMerge), rebuilt every 6 hours with all open pull requests merged, falling back to the stable packs when the download fails
 - `mergeLoaders`: Ignore the loader and merge both the Forge and Fabric packs, with the current loader's translations winning on conflicts
 - `initialTimeout`: Maximum seconds to wait on first launch without local cache, set to `0` to disable waiting
+- `cacheTtlHours`: Update check interval in hours, set to `0` to check on every launch, beta packs are checked at least every 6 hours
+- `excludeMods`: Mod namespaces to leave untranslated, such as `["create"]`
+- `onlyWhenChineseSystem`: Only run when the operating system locale is Chinese, otherwise nothing is downloaded and `options.txt` is left untouched, the check uses the system locale rather than the in-game language
 
 ### Notes
 

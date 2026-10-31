@@ -21,6 +21,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -92,6 +93,13 @@ public final class I18nAutoUpdateMod {
         }
 
         ModConfig config = ModConfig.load(minecraftPath);
+        if (!config.isLanguageAllowed()) {
+            Log.info("onlyWhenChineseSystem is enabled and the system locale is %s, skipping",
+                    Locale.getDefault());
+            return CompletableFuture.completedFuture(null);
+        }
+        Set<String> excludedMods = config.normalizedExcludeMods();
+        domains.removeIf(domain -> excludedMods.contains(domain.toLowerCase(Locale.ROOT)));
 
         String convertedFileName = String.format("Minecraft-Mod-Language-Modpack-Converted-%s.zip", minecraftVersion);
         Path convertedPackPath = minecraftPath.resolve("resourcepacks").resolve(convertedFileName);
@@ -163,7 +171,9 @@ public final class I18nAutoUpdateMod {
             GameAssetDetail assets = I18nConfig.getAssetDetail(minecraftVersion, loader, config);
             // Beta packs share file names with stable ones, so they need their own cache.
             Path cacheRoot = config.betaPack ? storagePath.resolve("beta") : storagePath;
-            long updateGap = config.betaPack ? BETA_UPDATE_GAP_MILLIS : ResourcePack.DEFAULT_UPDATE_GAP_MILLIS;
+            long updateGap = config.betaPack
+                    ? Math.min(BETA_UPDATE_GAP_MILLIS, config.cacheTtlMillis())
+                    : config.cacheTtlMillis();
             List<ResourcePack> languagePacks = new ArrayList<>();
             for (GameAssetDetail.AssetDownloadDetail detail : assets.downloads) {
                 ResourcePack languagePack = new ResourcePack(
@@ -195,11 +205,13 @@ public final class I18nAutoUpdateMod {
             Path minecraftPath, String minecraftVersion, String convertedFileName, ModConfig config) {
         try {
             GameConfig options = new GameConfig(minecraftPath.resolve("options.txt"));
-            options.addResourcePack(
+            boolean changed = options.addResourcePack(
                     "Minecraft-Mod-Language-Modpack",
                     resourcePackId(minecraftVersion, convertedFileName),
                     config.forceBottom);
-            options.writeToFile();
+            if (changed) {
+                options.writeToFile();
+            }
         } catch (Exception e) {
             Log.warning("Failed to register resource pack: %s", e);
         }

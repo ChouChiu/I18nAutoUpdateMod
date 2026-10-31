@@ -19,7 +19,8 @@ import java.util.*;
 
 import static i18nautoupdatemod.I18nAutoUpdateMod.GSON;
 
-//1.13-latest
+//MinecraftForge: 1.13-latest
+//NeoForge: 1.20.1-1.21.8
 public class ModLauncherService implements ITransformationService {
     @Override
     public @NotNull String name() {
@@ -33,13 +34,18 @@ public class ModLauncherService implements ITransformationService {
             Log.warning("Minecraft path not found");
             return;
         }
+        if (isDedicatedServer(environment)) {
+            Log.info("Dedicated server detected, skipping the client resource-pack update.");
+            return;
+        }
         Log.setMinecraftLogFile(minecraftPath.get());
         String minecraftVersion = getMinecraftVersion();
         if (minecraftVersion == null) {
             Log.warning("Minecraft version not found");
             return;
         }
-        I18nAutoUpdateMod.init(minecraftPath.get(), minecraftVersion, "Forge",  ModUtil.getModDomainsFromModsFolder(minecraftPath.get(), minecraftVersion, "Forge"));
+        String loader = isNeoForge() ? "NeoForge" : "Forge";
+        I18nAutoUpdateMod.init(minecraftPath.get(), minecraftVersion, loader, ModUtil.getModDomainsFromModsFolder(minecraftPath.get(), minecraftVersion, loader));
     }
 
     @Override
@@ -57,9 +63,25 @@ public class ModLauncherService implements ITransformationService {
         return Collections.emptyList();
     }
 
+    private static boolean isDedicatedServer(IEnvironment environment) {
+        // Forge and NeoForge name every dedicated-server launch target "*server".
+        return environment.getProperty(IEnvironment.Keys.LAUNCHTARGET.get())
+                .map(target -> target.toLowerCase(Locale.ROOT).contains("server"))
+                .orElse(false);
+    }
+
+    private boolean isNeoForge() {
+        try {
+            Class.forName("net.neoforged.fml.loading.FMLLoader", false, getClass().getClassLoader());
+            return true;
+        } catch (ClassNotFoundException ignored) {
+            return false;
+        }
+    }
+
     private String getMinecraftVersion() {
         // MinecraftForge 1.13~1.20.2
-        // NeoForge 1.20.1~
+        // NeoForge 1.20.1~1.21.8
         try {
             String[] args = (String[]) Reflection.clazz(Launcher.INSTANCE).get("argumentHandler").get("args").get();
             for (int i = 0; i < args.length - 1; ++i) {

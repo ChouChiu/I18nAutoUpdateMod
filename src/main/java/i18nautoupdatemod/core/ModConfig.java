@@ -12,8 +12,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 public class ModConfig {
     public static final String FILE_NAME = "i18nautoupdatemod.json";
@@ -24,6 +27,7 @@ public class ModConfig {
     public static final List<String> KNOWN_SOURCES =
             Arrays.asList(SOURCE_GITHUB, SOURCE_CFPA, SOURCE_COMMUNITY);
     public static final int DEFAULT_INITIAL_TIMEOUT_SECONDS = 10;
+    public static final int DEFAULT_CACHE_TTL_HOURS = 24;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
@@ -33,6 +37,9 @@ public class ModConfig {
     public boolean betaPack = false;
     public boolean mergeLoaders = false;
     public int initialTimeout = DEFAULT_INITIAL_TIMEOUT_SECONDS;
+    public int cacheTtlHours = DEFAULT_CACHE_TTL_HOURS;
+    public List<String> excludeMods = new ArrayList<>();
+    public boolean onlyWhenChineseSystem = false;
 
     public static ModConfig defaults() {
         return new ModConfig();
@@ -54,6 +61,9 @@ public class ModConfig {
                 }
                 if (config.defaultSource == null) {
                     config.defaultSource = SOURCE_AUTO;
+                }
+                if (config.excludeMods == null) {
+                    config.excludeMods = new ArrayList<>();
                 }
                 if (stored.keySet().containsAll(GSON.toJsonTree(config).getAsJsonObject().keySet())) {
                     return config;
@@ -81,6 +91,37 @@ public class ModConfig {
         } finally {
             Files.deleteIfExists(temporary);
         }
+    }
+
+    /**
+     * @return the update check interval, {@code 0} checks on every launch
+     */
+    public long cacheTtlMillis() {
+        return TimeUnit.HOURS.toMillis(Math.max(0, cacheTtlHours));
+    }
+
+    public Set<String> normalizedExcludeMods() {
+        Set<String> result = new HashSet<>();
+        if (excludeMods != null) {
+            for (String mod : excludeMods) {
+                if (mod != null && !mod.trim().isEmpty()) {
+                    result.add(mod.trim().toLowerCase(Locale.ROOT));
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Uses the JVM default locale, which follows the operating system rather
+     * than the in-game language.
+     */
+    public boolean isLanguageAllowed() {
+        return !onlyWhenChineseSystem || isChineseLocale(Locale.getDefault());
+    }
+
+    static boolean isChineseLocale(Locale locale) {
+        return locale != null && "zh".equalsIgnoreCase(locale.getLanguage());
     }
 
     /**

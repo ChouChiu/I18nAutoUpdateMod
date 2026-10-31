@@ -30,7 +30,8 @@ public class GameConfig {
         this.configs = FileUtils.readLines(configFile.toFile(), StandardCharsets.UTF_8).stream()
                 .map(it -> it.split(":", 2))
                 .filter(it -> it.length == 2)
-                .collect(Collectors.toMap(it -> it[0], it -> it[1], (a, b) -> a, LinkedHashMap::new));
+                // Minecraft applies options in order, so a repeated key keeps its last value.
+                .collect(Collectors.toMap(it -> it[0], it -> it[1], (a, b) -> b, LinkedHashMap::new));
     }
 
     public void writeToFile() throws Exception {
@@ -45,11 +46,15 @@ public class GameConfig {
         }
     }
 
-    public void addResourcePack(String baseName, String resourcePack) {
-        addResourcePack(baseName, resourcePack, true);
+    public boolean addResourcePack(String baseName, String resourcePack) {
+        return addResourcePack(baseName, resourcePack, true);
     }
 
-    public void addResourcePack(String baseName, String resourcePack, boolean forceBottom) {
+    /**
+     * @return whether the resource pack list changed
+     */
+    public boolean addResourcePack(String baseName, String resourcePack, boolean forceBottom) {
+        String previous = configs.get("resourcePacks");
         List<String> resourcePacks = GSON.fromJson(
                 configs.computeIfAbsent("resourcePacks", it -> "[]"), STRING_LIST_TYPE);
         if (resourcePacks == null) {
@@ -68,8 +73,10 @@ public class GameConfig {
                 .filter(it -> !it.contains(baseName))
                 .collect(Collectors.toList());
         resourcePacks.add(forceBottom || existingIndex < 0 ? 0 : existingIndex, resourcePack);
-        configs.put("resourcePacks", GSON.toJson(resourcePacks));
-        Log.info(String.format("Resource Packs: %s", configs.get("resourcePacks")));
+        String updated = GSON.toJson(resourcePacks);
+        configs.put("resourcePacks", updated);
+        Log.info(String.format("Resource Packs: %s", updated));
 //        configs.put("lang", "zh_cn");
+        return !updated.equals(previous);
     }
 }
