@@ -1,18 +1,22 @@
 package i18nautoupdatemod;
 
-import com.google.gson.Gson;
+import com.google.gson.JsonParseException;
 import i18nautoupdatemod.core.GameConfig;
 import i18nautoupdatemod.core.I18nConfig;
 import i18nautoupdatemod.core.ModConfig;
+import i18nautoupdatemod.core.LivePackActivation;
 import i18nautoupdatemod.core.ResourcePack;
 import i18nautoupdatemod.core.ResourcePackConverter;
 import i18nautoupdatemod.entity.GameAssetDetail;
 import i18nautoupdatemod.entity.GameMetaData;
+import i18nautoupdatemod.util.AssetUtil;
 import i18nautoupdatemod.util.FileUtil;
 import i18nautoupdatemod.util.Log;
+import i18nautoupdatemod.util.ModUtil;
 import i18nautoupdatemod.util.Version;
-import org.jetbrains.annotations.NotNull;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -20,21 +24,23 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public final class I18nAutoUpdateMod {
     public static final String MOD_ID = "i18nautoupdatemod";
     public static final String OLD_MOD_ID = "i18nupdatemod";
     public static final String MOD_VERSION = implementationVersion();
-    public static final Gson GSON = new Gson();
+    private static final Pattern GAME_VERSION = Pattern.compile("[0-9][0-9A-Za-z._+-]{0,63}");
+    private static final String PACK_BASE_NAME = "Minecraft-Mod-Language-Modpack";
+    private static final Version MODERN_PACK_ID_VERSION = Version.from("1.13");
 
     public static final String INITIAL_TIMEOUT_PROPERTY = "i18nautoupdatemod.initialTimeout";
     public static final int DEFAULT_INITIAL_DOWNLOAD_TIMEOUT_SECONDS = ModConfig.DEFAULT_INITIAL_TIMEOUT_SECONDS;
@@ -78,10 +84,11 @@ public final class I18nAutoUpdateMod {
             Path minecraftPath,
             String minecraftVersion,
             String loader,
-            @NotNull HashSet<String> modDomains) {
-        HashSet<String> domains = new HashSet<>(modDomains);
-        domains.remove(MOD_ID);
-        domains.remove(OLD_MOD_ID);
+            Set<String> modIds) {
+        if (minecraftVersion == null || !GAME_VERSION.matcher(minecraftVersion).matches()) {
+            Log.warning("Invalid Minecraft version: %s", minecraftVersion);
+            return CompletableFuture.completedFuture(null);
+        }
 
         Log.info("I18nAutoUpdateMod %s is loaded in %s with %s",
                 MOD_VERSION, minecraftVersion, loader);
@@ -98,19 +105,18 @@ public final class I18nAutoUpdateMod {
                     Locale.getDefault());
             return CompletableFuture.completedFuture(null);
         }
-        Set<String> excludedMods = config.normalizedExcludeMods();
-        domains.removeIf(domain -> excludedMods.contains(domain.toLowerCase(Locale.ROOT)));
+        Set<String> knownMods = new HashSet<>(modIds);
 
-        String convertedFileName = String.format("Minecraft-Mod-Language-Modpack-Converted-%s.zip", minecraftVersion);
+        String convertedFileName = I18nConfig.convertedFileName(minecraftVersion);
         Path convertedPackPath = minecraftPath.resolve("resourcepacks").resolve(convertedFileName);
-        boolean packAlreadyExists = Files.exists(convertedPackPath);
+        boolean packAlreadyExists = Files.isRegularFile(convertedPackPath);
 
         if (packAlreadyExists) {
             registerResourcePack(minecraftPath, minecraftVersion, convertedFileName, config);
         }
 
         CompletableFuture<Void> future = startAsyncOnce(() -> updateResourcePack(
-                minecraftPath, minecraftVersion, loader, domains, config));
+                minecraftPath, minecraftVersion, loader, convertedPackPath, knownMods, config));
 
         if (!packAlreadyExists) {
             int timeoutSeconds = getInitialDownloadTimeoutSeconds(config.initialTimeout);
@@ -122,17 +128,24 @@ public final class I18nAutoUpdateMod {
                     future.get(timeoutSeconds, TimeUnit.SECONDS);
                 } catch (TimeoutException e) {
                     Log.warning(
-                            "Initial resource pack download timed out after %d seconds; continuing game launch. The pack will take effect on next launch.",
+                            "Initial resource pack download timed out after %d seconds; continuing in the background.",
                             timeoutSeconds);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     Log.warning("Initial resource pack download interrupted: %s", e);
-                } catch (Exception e) {
-                    Log.warning("Initial resource pack download failed: %s", e);
+                } catch (ExecutionException e) {
+                    Log.warning("Initial resource pack download failed: %s", e.getCause());
                 }
             }
-            if (Files.exists(convertedPackPath)) {
+            if (Files.isRegularFile(convertedPackPath)) {
                 registerResourcePack(minecraftPath, minecraftVersion, convertedFileName, config);
+            } else if (LivePackActivation.supports(minecraftVersion)) {
+                String packId = resourcePackId(minecraftVersion, convertedFileName);
+                future.thenRunAsync(() -> {
+                    if (Files.isRegularFile(convertedPackPath)) {
+                        LivePackActivation.schedule(PACK_BASE_NAME, packId, config.forceBottom);
+                    }
+                }, UPDATE_EXECUTOR);
             }
         }
 
@@ -160,20 +173,28 @@ public final class I18nAutoUpdateMod {
             Path minecraftPath,
             String minecraftVersion,
             String loader,
-            HashSet<String> modDomains,
+            Path convertedPackPath,
+            Set<String> modDomains,
             ModConfig config) {
         try {
+            GameMetaData metaData = I18nConfig.getPackFormat(minecraftVersion);
+            modDomains.addAll(ModUtil.getModDomainsFromModsFolder(minecraftPath));
+            Set<String> excludedMods = config.normalizedExcludeMods();
+            excludedMods.add(MOD_ID);
+            excludedMods.add(OLD_MOD_ID);
+            modDomains.removeIf(domain -> excludedMods.contains(domain.toLowerCase(Locale.ROOT)));
+
             Path storagePath = prepareStoragePath();
-            Path resourcePackDirectory = minecraftPath.resolve("resourcepacks");
-            FileUtil.ensureDirectory(resourcePackDirectory);
+            Path resourcePackDirectory = convertedPackPath.getParent();
             Log.debug("Local storage path: %s", storagePath);
 
             GameAssetDetail assets = I18nConfig.getAssetDetail(minecraftVersion, loader, config);
             // Beta packs share file names with stable ones, so they need their own cache.
             Path cacheRoot = config.betaPack ? storagePath.resolve("beta") : storagePath;
-            long updateGap = config.betaPack
-                    ? Math.min(BETA_UPDATE_GAP_MILLIS, config.cacheTtlMillis())
-                    : config.cacheTtlMillis();
+            long updateGap = config.cacheTtlMillis();
+            if (config.betaPack) {
+                updateGap = Math.min(BETA_UPDATE_GAP_MILLIS, updateGap);
+            }
             List<ResourcePack> languagePacks = new ArrayList<>();
             for (GameAssetDetail.AssetDownloadDetail detail : assets.downloads) {
                 ResourcePack languagePack = new ResourcePack(
@@ -181,23 +202,17 @@ public final class I18nAutoUpdateMod {
                         resourcePackDirectory,
                         cacheRoot.resolve(detail.targetVersion),
                         updateGap);
-                languagePack.checkUpdate(detail.sources);
+                languagePack.checkUpdate(() -> AssetUtil.resolveSources(detail.fileName, detail.checksumFileName, config));
                 languagePacks.add(languagePack);
             }
 
-            GameMetaData metaData = I18nConfig.getPackFormat(minecraftVersion);
-            ResourcePackConverter converter = new ResourcePackConverter(
-                    languagePacks,
-                    assets.convertedFileName,
-                    storagePath.resolve(minecraftVersion),
-                    resourcePackDirectory);
+            ResourcePackConverter converter = new ResourcePackConverter(languagePacks, convertedPackPath);
             converter.convert(
                     metaData,
                     getResourcePackDescription(assets.downloads, config.betaPack),
                     modDomains);
-            registerResourcePack(minecraftPath, minecraftVersion, assets.convertedFileName, config);
-        } catch (Exception e) {
-            throw new IllegalStateException("Failed to update resource pack", e);
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to update resource pack", e);
         }
     }
 
@@ -206,30 +221,27 @@ public final class I18nAutoUpdateMod {
         try {
             GameConfig options = new GameConfig(minecraftPath.resolve("options.txt"));
             boolean changed = options.addResourcePack(
-                    "Minecraft-Mod-Language-Modpack",
+                    PACK_BASE_NAME,
                     resourcePackId(minecraftVersion, convertedFileName),
                     config.forceBottom);
             if (changed) {
                 options.writeToFile();
             }
-        } catch (Exception e) {
+        } catch (IOException | JsonParseException e) {
             Log.warning("Failed to register resource pack: %s", e);
         }
     }
 
     static String resourcePackId(String minecraftVersion, String convertedFileName) {
         Version version = Version.from(minecraftVersion);
-        Version filePrefixVersion = Version.from("1.13");
-        boolean usesModernPackId = version != null
-                && filePrefixVersion != null
-                && version.compareTo(filePrefixVersion) >= 0;
+        boolean usesModernPackId = version != null && version.compareTo(MODERN_PACK_ID_VERSION) >= 0;
         return (usesModernPackId ? "file/" : "") + convertedFileName;
     }
 
     static String getResourcePackDescription(
             List<GameAssetDetail.AssetDownloadDetail> downloads, boolean withBeta) {
         String description = getResourcePackDescription(downloads);
-        return withBeta ? description + "\n（Beta：含未合并 PR 的翻译）" : description;
+        return withBeta ? description + "\n（Beta 模式：优先使用包含未合并 PR 的翻译）" : description;
     }
 
     private static String getResourcePackDescription(
@@ -252,7 +264,7 @@ public final class I18nAutoUpdateMod {
                 .collect(Collectors.toList());
     }
 
-    public static Path prepareStoragePath() throws Exception {
+    public static Path prepareStoragePath() throws IOException {
         Path userHome = Paths.get(System.getProperty("user.home"));
         Path platformBase = getPlatformStorageBase(userHome);
         Path homeNew = userHome.resolve("." + MOD_ID);
@@ -261,13 +273,11 @@ public final class I18nAutoUpdateMod {
         Path platformOld = platformBase.resolve("." + OLD_MOD_ID);
 
         Path target = Files.exists(homeNew) || Files.exists(homeOld) ? homeNew : platformNew;
-        for (Path legacy : Stream.of(homeOld, platformOld)
-                .filter(Objects::nonNull)
-                .distinct()
-                .collect(Collectors.toList())) {
-            FileUtil.migrateDirectory(legacy, target);
+        FileUtil.migrateDirectory(homeOld, target);
+        if (!homeOld.equals(platformOld)) {
+            FileUtil.migrateDirectory(platformOld, target);
         }
-        FileUtil.ensureDirectory(target);
+        Files.createDirectories(target);
         return target;
     }
 
@@ -297,7 +307,7 @@ public final class I18nAutoUpdateMod {
 
     private static boolean isNetEaseMinecraft() {
         try {
-            Class.forName("com.netease.mc.mod.network.common.Library");
+            Class.forName("com.netease.mc.mod.network.common.Library", false, I18nAutoUpdateMod.class.getClassLoader());
             return true;
         } catch (ClassNotFoundException ignored) {
             return false;

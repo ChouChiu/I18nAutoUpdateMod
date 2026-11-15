@@ -1,7 +1,5 @@
 package i18nautoupdatemod.util;
 
-import org.jetbrains.annotations.NotNull;
-
 public class VersionRange {
     private Version fromVersion;
     private boolean containsLeft;
@@ -16,7 +14,7 @@ public class VersionRange {
         START, READING_FIRST_VERSION, READING_SECOND_VERSION
     }
 
-    private void parseVersionRange(@NotNull String range) {
+    private void parseVersionRange(String range) {
         RangeParseState state = RangeParseState.START;
         StringBuilder buffer = new StringBuilder();
         for (char c : range.toCharArray()) {
@@ -57,7 +55,10 @@ public class VersionRange {
         throw new IllegalArgumentException("Range illegal");
     }
 
-    public boolean contains(@NotNull Version version) {
+    public boolean contains(Version version) {
+        if (version == null) {
+            return false;
+        }
         if (fromVersion != null) {
             int cmp = version.compareTo(fromVersion);
             if (cmp < 0 || (!containsLeft && cmp == 0)) {

@@ -2,12 +2,12 @@ package i18nautoupdatemod.neoforge;
 
 import i18nautoupdatemod.I18nAutoUpdateMod;
 import i18nautoupdatemod.util.Log;
-import i18nautoupdatemod.util.ModUtil;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.loading.FMLLoader;
 
 import java.nio.file.Path;
+import java.util.Collections;
 
 @Mod(value = I18nAutoUpdateMod.MOD_ID, dist = Dist.CLIENT)
 public class NeoForgeMod {
@@ -35,8 +35,7 @@ public class NeoForgeMod {
                 minecraftPath,
                 minecraftVersion,
                 "NeoForge",
-                ModUtil.getModDomainsFromModsFolder(
-                        minecraftPath, minecraftVersion, "NeoForge"));
+                Collections.emptySet());
     }
 
     private String getMinecraftVersion(FMLLoader loader) {

@@ -2,30 +2,36 @@ package i18nautoupdatemod.core;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import i18nautoupdatemod.util.FileUtil;
 import i18nautoupdatemod.util.Log;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-public class ModConfig {
+public final class ModConfig {
     public static final String FILE_NAME = "i18nautoupdatemod.json";
     public static final String SOURCE_AUTO = "auto";
     public static final String SOURCE_GITHUB = "GitHub";
     public static final String SOURCE_CFPA = "CFPA";
     public static final String SOURCE_COMMUNITY = "Community Mirror";
-    public static final List<String> KNOWN_SOURCES =
-            Arrays.asList(SOURCE_GITHUB, SOURCE_CFPA, SOURCE_COMMUNITY);
+    private static final List<String> KNOWN_SOURCES =
+            Collections.unmodifiableList(Arrays.asList(SOURCE_GITHUB, SOURCE_CFPA, SOURCE_COMMUNITY));
     public static final int DEFAULT_INITIAL_TIMEOUT_SECONDS = 10;
     public static final int DEFAULT_CACHE_TTL_HOURS = 24;
 
@@ -33,7 +39,7 @@ public class ModConfig {
 
     public boolean forceBottom = true;
     public String defaultSource = SOURCE_AUTO;
-    public List<String> mirrorPriority = new ArrayList<>(Arrays.asList("CFPA", "Community", "GitHub"));
+    public List<String> mirrorPriority = new ArrayList<>(Arrays.asList(SOURCE_CFPA, "Community", SOURCE_GITHUB));
     public boolean betaPack = false;
     public boolean mergeLoaders = false;
     public int initialTimeout = DEFAULT_INITIAL_TIMEOUT_SECONDS;
@@ -47,50 +53,44 @@ public class ModConfig {
 
     public static ModConfig load(Path minecraftPath) {
         Path file = minecraftPath.resolve("config").resolve(FILE_NAME);
-        ModConfig config = defaults();
+        JsonObject stored;
         try {
-            if (Files.exists(file)) {
-                JsonObject stored = JsonParser.parseString(
-                        new String(Files.readAllBytes(file), StandardCharsets.UTF_8)).getAsJsonObject();
-                ModConfig parsed = GSON.fromJson(stored, ModConfig.class);
-                if (parsed != null) {
-                    config = parsed;
-                }
-                if (config.mirrorPriority == null) {
-                    config.mirrorPriority = defaults().mirrorPriority;
-                }
-                if (config.defaultSource == null) {
-                    config.defaultSource = SOURCE_AUTO;
-                }
-                if (config.excludeMods == null) {
-                    config.excludeMods = new ArrayList<>();
-                }
-                if (stored.keySet().containsAll(GSON.toJsonTree(config).getAsJsonObject().keySet())) {
-                    return config;
-                }
-            }
-        } catch (Exception e) {
+            stored = JsonParser.parseString(
+                    new String(Files.readAllBytes(file), StandardCharsets.UTF_8)).getAsJsonObject();
+        } catch (NoSuchFileException e) {
+            stored = new JsonObject();
+        } catch (IOException | JsonParseException | IllegalStateException e) {
             Log.warning("Failed to read %s, using default settings: %s", file, e);
             return defaults();
         }
 
+        JsonObject defaultValues = GSON.toJsonTree(defaults()).getAsJsonObject();
+        boolean changed = false;
+        for (Map.Entry<String, JsonElement> entry : defaultValues.entrySet()) {
+            JsonElement value = stored.get(entry.getKey());
+            if (value == null || value.isJsonNull()) {
+                stored.add(entry.getKey(), entry.getValue());
+                changed = true;
+            }
+        }
+        ModConfig config;
         try {
-            config.write(file);
-        } catch (Exception e) {
-            Log.warning("Failed to write %s: %s", file, e);
+            config = GSON.fromJson(stored, ModConfig.class);
+        } catch (JsonParseException e) {
+            Log.warning("Invalid settings in %s, using defaults: %s", file, e);
+            return defaults();
+        }
+
+        if (changed) {
+            JsonObject updated = stored;
+            try {
+                FileUtil.writeAtomically(file, temporary ->
+                        Files.write(temporary, GSON.toJson(updated).getBytes(StandardCharsets.UTF_8)));
+            } catch (IOException e) {
+                Log.warning("Failed to write %s: %s", file, e);
+            }
         }
         return config;
-    }
-
-    void write(Path file) throws Exception {
-        FileUtil.ensureDirectory(file.getParent());
-        Path temporary = file.resolveSibling(file.getFileName() + ".part");
-        try {
-            Files.write(temporary, GSON.toJson(this).getBytes(StandardCharsets.UTF_8));
-            FileUtil.atomicReplace(temporary, file);
-        } finally {
-            Files.deleteIfExists(temporary);
-        }
     }
 
     /**

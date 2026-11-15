@@ -38,7 +38,7 @@ class ModConfigTest {
 
     @Test
     void fillsMissingFieldsAndKeepsUserValues() throws Exception {
-        write("{\"betaPack\":true,\"forceBottom\":false}");
+        write("{\"betaPack\":true,\"forceBottom\":false,\"customSetting\":42}");
 
         ModConfig config = ModConfig.load(minecraftPath);
 
@@ -49,6 +49,7 @@ class ModConfigTest {
         assertTrue(written.get("betaPack").getAsBoolean());
         assertTrue(written.has("mirrorPriority"));
         assertTrue(written.has("initialTimeout"));
+        assertEquals(42, written.get("customSetting").getAsInt());
     }
 
     @Test

@@ -5,11 +5,11 @@ import i18nautoupdatemod.entity.GameAssetDetail;
 import i18nautoupdatemod.entity.GameMapping;
 import i18nautoupdatemod.entity.GameMetaData;
 import i18nautoupdatemod.entity.I18nMetaData;
-import i18nautoupdatemod.util.AssetUtil;
 import i18nautoupdatemod.util.Log;
 import i18nautoupdatemod.util.Version;
 import i18nautoupdatemod.util.VersionRange;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -36,7 +36,7 @@ public final class I18nConfig {
                 throw new IllegalStateException("i18nMetaData.json is incomplete");
             }
             return result;
-        } catch (Exception e) {
+        } catch (IOException e) {
             throw new ExceptionInInitializerError(e);
         }
     }
@@ -94,15 +94,15 @@ public final class I18nConfig {
                 detail.targetVersion = packVersion;
                 detail.fileName = variants.get(variant);
                 detail.checksumFileName = checksumFileName(packVersion, variant);
-                detail.sources = AssetUtil.resolveSources(
-                        detail.fileName, detail.checksumFileName, config);
                 result.downloads.add(detail);
             }
         }
 
-        result.convertedFileName =
-                String.format("Minecraft-Mod-Language-Modpack-Converted-%s.zip", minecraftVersion);
         return result;
+    }
+
+    public static String convertedFileName(String minecraftVersion) {
+        return "Minecraft-Mod-Language-Modpack-Converted-" + minecraftVersion + ".zip";
     }
 
     static String normalizeLoader(String loader) {

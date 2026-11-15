@@ -1,6 +1,7 @@
 package i18nautoupdatemod.modlauncher;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import cpw.mods.modlauncher.Launcher;
 import cpw.mods.modlauncher.api.IEnvironment;
 import cpw.mods.modlauncher.api.ITransformationService;
@@ -8,16 +9,14 @@ import cpw.mods.modlauncher.api.ITransformer;
 import cpw.mods.modlauncher.api.IncompatibleEnvironmentException;
 import i18nautoupdatemod.I18nAutoUpdateMod;
 import i18nautoupdatemod.util.Log;
-import i18nautoupdatemod.util.ModUtil;
 import i18nautoupdatemod.util.Reflection;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.*;
-
-import static i18nautoupdatemod.I18nAutoUpdateMod.GSON;
 
 //MinecraftForge: 1.13-latest
 //NeoForge: 1.20.1-1.21.8
@@ -45,7 +44,7 @@ public class ModLauncherService implements ITransformationService {
             return;
         }
         String loader = isNeoForge() ? "NeoForge" : "Forge";
-        I18nAutoUpdateMod.init(minecraftPath.get(), minecraftVersion, loader, ModUtil.getModDomainsFromModsFolder(minecraftPath.get(), minecraftVersion, loader));
+        I18nAutoUpdateMod.init(minecraftPath.get(), minecraftVersion, loader, Collections.emptySet());
     }
 
     @Override
@@ -90,7 +89,7 @@ public class ModLauncherService implements ITransformationService {
                 }
             }
         } catch (Exception e) {
-            Log.warning("Error getting minecraft version: %s", e);
+            Log.debug("Minecraft version unavailable from launch arguments: %s", e);
         }
 
         // MinecraftForge 1.20.3~
@@ -98,7 +97,11 @@ public class ModLauncherService implements ITransformationService {
         try {
             Class<?> clazz = Class.forName("net.minecraftforge.fml.loading.FMLLoader");
             try (InputStream is = clazz.getResourceAsStream("/forge_version.json")) {
-                return GSON.fromJson(new InputStreamReader(is), JsonObject.class).get("mc").getAsString();
+                if (is != null) {
+                    JsonObject version = JsonParser.parseReader(
+                            new InputStreamReader(is, StandardCharsets.UTF_8)).getAsJsonObject();
+                    return version.get("mc").getAsString();
+                }
             }
         } catch (Exception e) {
             Log.warning("Error getting minecraft version: %s", e);

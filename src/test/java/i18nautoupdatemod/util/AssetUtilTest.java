@@ -125,6 +125,19 @@ class AssetUtilTest {
                 baseUrl(slowServer) + "pack.md5", 100, 100));
     }
 
+    @Test
+    void rejectsOversizedChunkedTextWithoutContentLength() throws Exception {
+        fastServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        fastServer.createContext("/", exchange -> {
+            exchange.sendResponseHeaders(200, 0);
+            try (java.io.OutputStream output = exchange.getResponseBody()) {
+                output.write(new byte[70 * 1024]);
+            }
+        });
+        fastServer.start();
+        assertThrows(IOException.class, () -> AssetUtil.readChecksum(baseUrl(fastServer)));
+    }
+
     private static HttpServer checksumServer(long delayMillis) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/pack.md5", exchange -> {

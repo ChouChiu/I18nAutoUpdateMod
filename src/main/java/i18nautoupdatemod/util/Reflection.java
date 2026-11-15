@@ -3,15 +3,16 @@ package i18nautoupdatemod.util;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
-public class Reflection {
+public final class Reflection {
     private final Class<?> clazz;
-    private Object instance;
+    private final Object instance;
 
-    public Reflection(Class<?> clazz) {
+    private Reflection(Class<?> clazz) {
         this.clazz = clazz;
+        this.instance = null;
     }
 
-    public Reflection(Object instance) {
+    private Reflection(Object instance) {
         if (instance == null) {
             throw new IllegalArgumentException("Instance cannot be null");
         }
@@ -31,13 +32,13 @@ public class Reflection {
         return new Reflection(instance);
     }
 
-    private Reflection getField(String field) throws Exception {
+    private Reflection getField(String field) throws ReflectiveOperationException {
         Field field0 = clazz.getDeclaredField(field);
         field0.setAccessible(true);
         return new Reflection(field0.get(instance));
     }
 
-    private Reflection invokeMethod(String method) throws Exception {
+    private Reflection invokeMethod(String method) throws ReflectiveOperationException {
         Method method1 = clazz.getDeclaredMethod(method);
         method1.setAccessible(true);
         return new Reflection(method1.invoke(instance));
@@ -48,10 +49,9 @@ public class Reflection {
      *
      * @param fieldOrMethod fieldName or methodName()
      * @return result
-     * @throws Exception
+     * @throws ReflectiveOperationException
      */
-    public Reflection get(String fieldOrMethod) throws Exception {
-//        System.out.println("Getting " + fieldOrMethod);
+    public Reflection get(String fieldOrMethod) throws ReflectiveOperationException {
         if (fieldOrMethod.endsWith(")")) {
             return invokeMethod(fieldOrMethod.replace("()", ""));
         } else {

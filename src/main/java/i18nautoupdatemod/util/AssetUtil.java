@@ -8,11 +8,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -21,6 +20,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ExecutionException;
+import java.util.regex.Pattern;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BooleanSupplier;
 
@@ -35,6 +36,9 @@ public final class AssetUtil {
 
     private static final int CONNECT_TIMEOUT_MILLIS = (int) TimeUnit.SECONDS.toMillis(5);
     private static final int READ_TIMEOUT_MILLIS = (int) TimeUnit.SECONDS.toMillis(30);
+    private static final long MAX_TEXT_BYTES = 64 * 1024;
+    private static final long MAX_DOWNLOAD_BYTES = 256L * 1024 * 1024;
+    private static final Pattern MD5 = Pattern.compile("(?i)[0-9a-f]{32}");
     private static final List<SourceRoot> SOURCE_ROOTS = createSourceRoots();
 
     private AssetUtil() {
@@ -138,9 +142,7 @@ public final class AssetUtil {
 
         List<SourceRoot> reachable = new ArrayList<>();
         for (ProbeResult result : results) {
-            if (result.reachable) {
-                reachable.add(result.root);
-            }
+            reachable.add(result.root);
         }
 
         List<SourceRoot> ordered = new ArrayList<>();
@@ -218,32 +220,35 @@ public final class AssetUtil {
             return thread;
         });
         try {
-            List<Future<ProbeResult>> futures = new ArrayList<>();
+            List<Callable<ProbeResult>> tasks = new ArrayList<>();
             for (SourceRoot root : roots) {
-                futures.add(executor.submit((Callable<ProbeResult>) () -> {
+                tasks.add(() -> {
                     long start = System.nanoTime();
-                    boolean reachable;
                     try {
-                        String checksum = getString(root.baseUrl + checksumFileName,
-                                CONNECT_TIMEOUT_MILLIS, (int) TimeUnit.SECONDS.toMillis(5)).trim();
-                        reachable = checksum.matches("(?i)[0-9a-f]{32}");
-                    } catch (Exception e) {
+                        readChecksum(root.baseUrl + checksumFileName, 5_000);
+                        return new ProbeResult(root, System.nanoTime() - start);
+                    } catch (IOException e) {
                         Log.debug("Source probe failed for %s: %s", root.name, e);
-                        reachable = false;
+                        return null;
                     }
-                    return new ProbeResult(root, reachable, System.nanoTime() - start);
-                }));
+                });
             }
 
             List<ProbeResult> results = new ArrayList<>();
-            for (Future<ProbeResult> future : futures) {
-                try {
-                    results.add(future.get(7, TimeUnit.SECONDS));
-                } catch (Exception e) {
-                    Log.debug("Source probe task failed: %s", e);
+            for (Future<ProbeResult> future : executor.invokeAll(tasks, 7, TimeUnit.SECONDS)) {
+                if (!future.isCancelled()) {
+                    ProbeResult result = future.get();
+                    if (result != null) {
+                        results.add(result);
+                    }
                 }
             }
             return results;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new ArrayList<>();
+        } catch (ExecutionException e) {
+            throw new IllegalStateException("Source probe failed", e.getCause());
         } finally {
             executor.shutdownNow();
         }
@@ -263,60 +268,57 @@ public final class AssetUtil {
     }
 
     public static void download(String url, Path localFile) throws IOException {
-        Log.info("Downloading: %s -> %s", url, localFile);
-        Files.createDirectories(localFile.getParent());
+        Log.info("Downloading: %s", url);
         HttpURLConnection connection = openConnection(url, CONNECT_TIMEOUT_MILLIS, READ_TIMEOUT_MILLIS);
-        try {
-            int responseCode = connection.getResponseCode();
-            if (responseCode < 200 || responseCode >= 300) {
-                throw new IOException("HTTP " + responseCode + " while downloading " + url);
-            }
-            try (InputStream input = connection.getInputStream();
-                 OutputStream output = Files.newOutputStream(localFile,
-                         StandardOpenOption.CREATE,
-                         StandardOpenOption.TRUNCATE_EXISTING,
-                         StandardOpenOption.WRITE)) {
-                byte[] buffer = new byte[8192];
-                int read;
-                while ((read = input.read(buffer)) >= 0) {
-                    output.write(buffer, 0, read);
-                }
+        try (InputStream input = response(connection, MAX_DOWNLOAD_BYTES);
+             OutputStream output = Files.newOutputStream(localFile)) {
+            long bytes = StreamUtil.copyLimited(input, output, MAX_DOWNLOAD_BYTES);
+            long expectedBytes = connection.getContentLengthLong();
+            if (expectedBytes >= 0 && bytes != expectedBytes) {
+                throw new IOException("Incomplete download from " + url);
             }
         } finally {
             connection.disconnect();
         }
-        Log.debug("Downloaded: %s -> %s", url, localFile);
     }
 
-    public static String getString(String url) throws IOException {
-        return getString(url, CONNECT_TIMEOUT_MILLIS, READ_TIMEOUT_MILLIS);
+    public static String readChecksum(String url) throws IOException {
+        return readChecksum(url, READ_TIMEOUT_MILLIS);
+    }
+
+    private static String readChecksum(String url, int readTimeout) throws IOException {
+        String value = getString(url, CONNECT_TIMEOUT_MILLIS, readTimeout).trim();
+        if (!MD5.matcher(value).matches()) {
+            throw new IOException("Invalid MD5 response from " + url);
+        }
+        return value;
     }
 
     static String getString(String url, int connectTimeout, int readTimeout) throws IOException {
         HttpURLConnection connection = openConnection(url, connectTimeout, readTimeout);
-        try {
-            int responseCode = connection.getResponseCode();
-            if (responseCode < 200 || responseCode >= 300) {
-                throw new IOException("HTTP " + responseCode + " while reading " + url);
-            }
-            try (InputStream input = connection.getInputStream();
-                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-                byte[] buffer = new byte[4096];
-                int read;
-                while ((read = input.read(buffer)) >= 0) {
-                    output.write(buffer, 0, read);
-                }
-                return new String(output.toByteArray(), StandardCharsets.UTF_8);
-            }
+        try (InputStream input = response(connection, MAX_TEXT_BYTES)) {
+            ByteArrayOutputStream output = new ByteArrayOutputStream();
+            StreamUtil.copyLimited(input, output, MAX_TEXT_BYTES);
+            return new String(output.toByteArray(), StandardCharsets.UTF_8);
         } finally {
             connection.disconnect();
         }
     }
 
+    private static InputStream response(HttpURLConnection connection, long maxBytes) throws IOException {
+        int status = connection.getResponseCode();
+        if (status != HttpURLConnection.HTTP_OK) {
+            throw new IOException("HTTP " + status + " from " + connection.getURL());
+        }
+        if (connection.getContentLengthLong() > maxBytes) {
+            throw new IOException("Response exceeds " + maxBytes + " bytes from " + connection.getURL());
+        }
+        return connection.getInputStream();
+    }
+
     private static HttpURLConnection openConnection(
             String url, int connectTimeout, int readTimeout) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-        connection.setRequestMethod("GET");
+        HttpURLConnection connection = (HttpURLConnection) URI.create(url).toURL().openConnection();
         connection.setConnectTimeout(connectTimeout);
         connection.setReadTimeout(readTimeout);
         connection.setInstanceFollowRedirects(true);
@@ -338,12 +340,10 @@ public final class AssetUtil {
 
     private static final class ProbeResult {
         final SourceRoot root;
-        final boolean reachable;
         final long elapsedNanos;
 
-        private ProbeResult(SourceRoot root, boolean reachable, long elapsedNanos) {
+        private ProbeResult(SourceRoot root, long elapsedNanos) {
             this.root = root;
-            this.reachable = reachable;
             this.elapsedNanos = elapsedNanos;
         }
     }

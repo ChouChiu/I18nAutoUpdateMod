@@ -13,37 +13,38 @@ public final class FileUtil {
     private FileUtil() {
     }
 
-    public static void ensureDirectory(Path path) throws IOException {
-        Files.createDirectories(path);
-    }
-
     public static void seedCache(Path source, Path cacheFile) throws IOException {
-        if (!Files.exists(cacheFile) && Files.isRegularFile(source)) {
-            ensureDirectory(cacheFile.getParent());
-            Files.copy(source, cacheFile, StandardCopyOption.COPY_ATTRIBUTES);
+        if (Files.notExists(cacheFile) && Files.isRegularFile(source)) {
+            writeAtomically(cacheFile, temporary ->
+                    Files.copy(source, temporary, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES));
             Log.info("Seeded cache: %s -> %s", source, cacheFile);
         }
     }
 
-    public static void atomicReplace(Path source, Path target) throws IOException {
-        ensureDirectory(target.getParent());
-        try {
-            Files.move(source, target,
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING);
-        } catch (AtomicMoveNotSupportedException e) {
-            Files.move(source, target, StandardCopyOption.REPLACE_EXISTING);
-        }
+    @FunctionalInterface
+    public interface FileWriter {
+        void write(Path temporary) throws IOException;
     }
 
-    public static void copyAtomically(Path source, Path target) throws IOException {
-        ensureDirectory(target.getParent());
-        Path temporary = target.resolveSibling(target.getFileName() + ".part");
+    public static void writeAtomically(Path target, FileWriter writer) throws IOException {
+        Path absoluteTarget = target.toAbsolutePath();
+        Files.createDirectories(absoluteTarget.getParent());
+        Path temporary = Files.createTempFile(absoluteTarget.getParent(), ".i18n-", ".part");
         try {
-            Files.copy(source, temporary, StandardCopyOption.REPLACE_EXISTING);
-            atomicReplace(temporary, target);
-        } finally {
-            Files.deleteIfExists(temporary);
+            writer.write(temporary);
+            try {
+                Files.move(temporary, absoluteTarget, StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING);
+            } catch (AtomicMoveNotSupportedException e) {
+                Files.move(temporary, absoluteTarget, StandardCopyOption.REPLACE_EXISTING);
+            }
+        } catch (IOException | RuntimeException | Error e) {
+            try {
+                Files.deleteIfExists(temporary);
+            } catch (IOException cleanupError) {
+                e.addSuppressed(cleanupError);
+            }
+            throw e;
         }
     }
 
@@ -52,7 +53,7 @@ public final class FileUtil {
             return;
         }
 
-        ensureDirectory(target.getParent());
+        Files.createDirectories(target.getParent());
         if (!Files.exists(target)) {
             try {
                 Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
@@ -65,12 +66,12 @@ public final class FileUtil {
             }
         }
 
-        ensureDirectory(target);
+        Files.createDirectories(target);
         Files.walkFileTree(source, new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs)
                     throws IOException {
-                ensureDirectory(target.resolve(source.relativize(dir)));
+                Files.createDirectories(target.resolve(source.relativize(dir)));
                 return FileVisitResult.CONTINUE;
             }
 
@@ -78,8 +79,8 @@ public final class FileUtil {
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs)
                     throws IOException {
                 Path destination = target.resolve(source.relativize(file));
-                if (!Files.exists(destination)) {
-                    Files.copy(file, destination, StandardCopyOption.COPY_ATTRIBUTES);
+                if (attrs.isRegularFile() && Files.notExists(destination)) {
+                    seedCache(file, destination);
                 }
                 return FileVisitResult.CONTINUE;
             }

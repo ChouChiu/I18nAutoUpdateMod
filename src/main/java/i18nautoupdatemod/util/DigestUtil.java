@@ -7,12 +7,15 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-public class DigestUtil {
-    public static String md5Hex(Path file) throws IOException, NoSuchAlgorithmException {
-        try (InputStream is = Files.newInputStream(file)) {
-            MessageDigest dig = MessageDigest.getInstance("MD5");
+public final class DigestUtil {
+    private DigestUtil() {
+    }
 
-            final byte[] buf = new byte[114514];
+    public static String md5Hex(Path file) throws IOException {
+        try (InputStream is = Files.newInputStream(file)) {
+            MessageDigest dig = newMd5();
+
+            final byte[] buf = new byte[8192];
 
             for (int read = is.read(buf); read != -1; read = is.read(buf)) {
                 dig.update(buf, 0, read);
@@ -22,10 +25,18 @@ public class DigestUtil {
         }
     }
 
+    private static MessageDigest newMd5() {
+        try {
+            return MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("MD5 is required by the Java platform", e);
+        }
+    }
+
     private static final String HEX = "0123456789ABCDEF";
 
-    public static String hexString(byte[] data) {
-        StringBuilder sb = new StringBuilder();
+    private static String hexString(byte[] data) {
+        StringBuilder sb = new StringBuilder(data.length * 2);
         for (byte d : data) {
             sb.append(HEX.charAt((d & 0xf0) >>> 4));
             sb.append(HEX.charAt(d & 0xf));

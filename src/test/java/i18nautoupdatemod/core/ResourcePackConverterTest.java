@@ -7,11 +7,14 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,7 +27,7 @@ class ResourcePackConverterTest {
     Path temporaryDirectory;
 
     @Test
-    void writesLegacyPackFormatAndPreservesUnrelatedMetadata() {
+    void writesLegacyPackFormatAndPreservesUnrelatedMetadata() throws Exception {
         String input = "{"
                 + "\"pack\":{\"description\":\"old\",\"pack_format\":99,"
                 + "\"min_format\":69,\"max_format\":75,\"supported_formats\":[1,99],"
@@ -48,7 +51,7 @@ class ResourcePackConverterTest {
     }
 
     @Test
-    void writesModernMinMaxFormatWithoutLegacyFields() {
+    void writesModernMinMaxFormatWithoutLegacyFields() throws Exception {
         String input = "{\"pack\":{\"description\":\"old\",\"pack_format\":64,"
                 + "\"supported_formats\":[64,75]},\"overlays\":{\"entries\":[]}}";
         GameMetaData metadata = new GameMetaData();
@@ -77,15 +80,35 @@ class ResourcePackConverterTest {
         ResourcePack source = new ResourcePack("source.zip", resourcePacks, sourceCache);
         ResourcePackConverter converter = new ResourcePackConverter(
                 Collections.singletonList(source),
-                "converted.zip",
-                temporaryDirectory.resolve("converted-cache"),
-                resourcePacks);
+                resourcePacks.resolve("converted.zip"));
         GameMetaData metadata = new GameMetaData();
         metadata.packFormat = 64;
 
-        assertThrows(Exception.class, () -> converter.convert(
+        assertThrows(IOException.class, () -> converter.convert(
                 metadata, "description", new HashSet<>()));
         assertArrayEquals(existing, Files.readAllBytes(resourcePacks.resolve("converted.zip")));
+    }
+
+    @Test
+    void rejectsTraversalEntriesAndLeavesInstalledPackIntact() throws Exception {
+        Path cache = Files.createDirectory(temporaryDirectory.resolve("cache"));
+        try (ZipOutputStream zip = new ZipOutputStream(Files.newOutputStream(cache.resolve("source.zip")))) {
+            zip.putNextEntry(new ZipEntry("pack.mcmeta"));
+            zip.write("{}".getBytes(StandardCharsets.UTF_8));
+            zip.putNextEntry(new ZipEntry("assets/example/../translations.lang"));
+            zip.write(1);
+        }
+        Path installed = temporaryDirectory.resolve("converted.zip");
+        byte[] existing = "installed".getBytes(StandardCharsets.UTF_8);
+        Files.write(installed, existing);
+
+        ResourcePack source = new ResourcePack("source.zip", temporaryDirectory, cache);
+        ResourcePackConverter converter = new ResourcePackConverter(Collections.singletonList(source), installed);
+        assertThrows(IOException.class, () -> converter.convert(new GameMetaData(), "test", Collections.emptySet()));
+        assertArrayEquals(existing, Files.readAllBytes(installed));
+        try (java.util.stream.Stream<Path> files = Files.list(temporaryDirectory)) {
+            assertFalse(files.anyMatch(path -> path.getFileName().toString().endsWith(".part")));
+        }
     }
 
     @Test
@@ -99,7 +122,7 @@ class ResourcePackConverterTest {
                 .getAsJsonObject().get("description").getAsString());
     }
 
-    private static JsonObject convert(String input, GameMetaData metadata) {
+    private static JsonObject convert(String input, GameMetaData metadata) throws Exception {
         byte[] output = ResourcePackConverter.convertPackMeta(
                 new ByteArrayInputStream(input.getBytes(StandardCharsets.UTF_8)),
                 metadata,

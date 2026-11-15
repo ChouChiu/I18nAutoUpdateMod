@@ -1,71 +1,47 @@
 package i18nautoupdatemod.util;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-public class Version implements Comparable<Version> {
-    public final String version;
-    private final List<Integer> versions = new ArrayList<>();
+public final class Version implements Comparable<Version> {
+    private static final Pattern NUMBER_PREFIX = Pattern.compile("^[0-9]+(?:\\.[0-9]+)*");
 
-    public static @Nullable Version from(String version) {
-        if (version == null || version.isEmpty()) {
+    private final List<Integer> components;
+
+    private Version(List<Integer> components) {
+        this.components = components;
+    }
+
+    public static Version from(String version) {
+        if (version == null) {
             return null;
         }
-        return new Version(version);
-    }
-
-    private Version(@NotNull String version) {
-        this.version = version;
-        parseVersion(version);
-    }
-
-    enum VersionParseState {
-        START, READING_NUMBER
-    }
-
-    private void parseVersion(@NotNull String version) {
-        VersionParseState state = VersionParseState.START;
-        StringBuilder buffer = new StringBuilder();
-        for (char c : version.toCharArray()) {
-            switch (state) {
-                case START:
-                    if (Character.isDigit(c)) {
-                        buffer.append(c);
-                        state = VersionParseState.READING_NUMBER;
-                    } else {
-                        return;
-                    }
-                    break;
-                case READING_NUMBER:
-                    if (Character.isDigit(c)) {
-                        buffer.append(c);
-                    } else {
-                        versions.add(Integer.parseInt(buffer.toString()));
-                        buffer = new StringBuilder();
-                        if (c == '.') {
-                            state = VersionParseState.START;
-                        } else {
-                            return;
-                        }
-                    }
-                    break;
-            }
+        Matcher prefix = NUMBER_PREFIX.matcher(version);
+        if (!prefix.find()) {
+            return null;
         }
-        versions.add(Integer.parseInt(buffer.toString()));
+        List<Integer> components = new ArrayList<>();
+        try {
+            for (String component : prefix.group().split("\\.")) {
+                components.add(Integer.parseInt(component));
+            }
+        } catch (NumberFormatException e) {
+            return null;
+        }
+        return new Version(components);
     }
 
     @Override
-    public int compareTo(@NotNull Version o) {
-        int min = Math.min(versions.size(), o.versions.size());
-        for (int i = 0; i < min; ++i) {
-            if (!Objects.equals(versions.get(i), o.versions.get(i))) {
-                return Integer.compare(versions.get(i), o.versions.get(i));
+    public int compareTo(Version other) {
+        int count = Math.min(components.size(), other.components.size());
+        for (int i = 0; i < count; i++) {
+            int comparison = Integer.compare(components.get(i), other.components.get(i));
+            if (comparison != 0) {
+                return comparison;
             }
         }
-        return Integer.compare(versions.size(), o.versions.size());
+        return Integer.compare(components.size(), other.components.size());
     }
 }

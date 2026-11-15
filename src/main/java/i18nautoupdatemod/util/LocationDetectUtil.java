@@ -2,8 +2,10 @@ package i18nautoupdatemod.util;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -41,7 +43,7 @@ public final class LocationDetectUtil {
                             detected ? "inside" : "outside");
                     return detected;
                 }
-            } catch (Exception e) {
+            } catch (IOException | JsonParseException | IllegalStateException | NumberFormatException e) {
                 Log.debug("Location detection failed for %s: %s", api, e);
             }
         }
@@ -51,23 +53,24 @@ public final class LocationDetectUtil {
     }
 
     static Boolean parseResponse(String response) {
-        JsonObject object = JsonParser.parseString(response).getAsJsonObject();
+        JsonElement json = JsonParser.parseString(response);
+        if (!json.isJsonObject()) {
+            return null;
+        }
+        JsonObject object = json.getAsJsonObject();
         JsonElement flag = object.get("flag");
-        if (flag != null && !flag.isJsonNull()) {
-            if (flag.isJsonPrimitive() && flag.getAsJsonPrimitive().isBoolean()) {
+        if (flag != null && flag.isJsonPrimitive()) {
+            if (flag.getAsJsonPrimitive().isBoolean()) {
                 return flag.getAsBoolean();
             }
             return flag.getAsInt() == 1;
         }
 
         JsonElement countryCode = object.get("country_code");
-        if (countryCode != null && !countryCode.isJsonNull()) {
+        if (countryCode != null && countryCode.isJsonPrimitive()) {
             return "CN".equalsIgnoreCase(countryCode.getAsString());
         }
         return null;
     }
 
-    static void resetForTests() {
-        CACHED.set(null);
-    }
 }

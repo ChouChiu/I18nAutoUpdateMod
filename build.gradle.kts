@@ -27,11 +27,11 @@ tasks.shadowJar {
             "Implementation-Version" to project.version,
         )
     }
-    minimize()
     archiveBaseName.set("I18nAutoUpdateMod")
-    relocate("com.google.archivepatcher", "include.com.google.archivepatcher")
+    // Older Minecraft versions ship Gson releases without the APIs used by this mod.
+    relocate("com.google.gson", "i18nautoupdatemod.shaded.gson")
     dependencies {
-        include(dependency("net.runelite.archive-patcher:archive-patcher-applier:.*"))
+        include(dependency("com.google.code.gson:gson:.*"))
     }
     exclude("LICENSE")
 }
@@ -42,7 +42,6 @@ repositories {
     maven("https://maven.fabricmc.net/")
     maven("https://files.minecraftforge.net/maven")
     maven("https://maven.neoforged.net/releases")
-    maven("https://repo.runelite.net/")
 }
 
 configurations.configureEach {
@@ -59,17 +58,14 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.3")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.3")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.3")
-    implementation("net.runelite.archive-patcher:archive-patcher-applier:1.2")
     compileOnly("org.jetbrains:annotations:24.1.0")
 
-    implementation("net.fabricmc:fabric-loader:0.15.9")
-    implementation("cpw.mods:modlauncher:8.1.3")
-    implementation("net.minecraft:launchwrapper:1.12")
+    compileOnly("net.fabricmc:fabric-loader:0.15.9")
+    compileOnly("cpw.mods:modlauncher:8.1.3")
+    compileOnly("net.minecraft:launchwrapper:1.12")
     compileOnly("net.neoforged.fancymodloader:loader:10.0.36")
     compileOnly("net.neoforged:mergetool:2.0.0:api")
 
-    implementation("commons-io:commons-io:2.16.1")
-    implementation("org.ow2.asm:asm:9.7")
     implementation("com.google.code.gson:gson:2.11.0")
 
 }

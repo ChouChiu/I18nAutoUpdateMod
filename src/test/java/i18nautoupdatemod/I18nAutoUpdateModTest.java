@@ -1,18 +1,25 @@
 package i18nautoupdatemod;
 
+import net.minecraft.client.Minecraft;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -195,6 +202,50 @@ class I18nAutoUpdateModTest {
             } else {
                 System.clearProperty(I18nAutoUpdateMod.INITIAL_TIMEOUT_PROPERTY);
             }
+        }
+    }
+    @Test
+    void enablesPackOnClientThreadWhenItFinishesAfterStartup(@TempDir Path gameDir) throws Exception {
+        Path config = Files.createDirectory(gameDir.resolve("config"));
+        Files.write(config.resolve("i18nautoupdatemod.json"),
+                "{\"initialTimeout\":0,\"forceBottom\":false}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        Minecraft client = new Minecraft();
+        Minecraft.instance = client;
+        String fileName = "Minecraft-Mod-Language-Modpack-Converted-26.1.2.zip";
+        String packId = "file/" + fileName;
+        Path pack = gameDir.resolve("resourcepacks").resolve(fileName);
+        CountDownLatch finishDownload = new CountDownLatch(1);
+        try {
+            I18nAutoUpdateMod.startAsyncOnce(() -> {
+                try {
+                    if (!finishDownload.await(5, TimeUnit.SECONDS)) {
+                        throw new AssertionError("Download was not released");
+                    }
+                    Files.createDirectories(pack.getParent());
+                    Files.createFile(pack);
+                    client.getResourcePackRepository().discoveredPack = packId;
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new AssertionError(e);
+                }
+            });
+
+            I18nAutoUpdateMod.init(gameDir, "26.1.2", "Fabric", new HashSet<>());
+            assertTrue(client.tasks.isEmpty());
+            finishDownload.countDown();
+            Runnable activation = client.tasks.poll(5, TimeUnit.SECONDS);
+            assertNotNull(activation);
+            assertNull(client.options.savedPacks);
+            activation.run();
+
+            assertEquals(Arrays.asList(packId, "vanilla", "file/z-user.zip", "file/a-user.zip"),
+                    client.options.savedPacks);
+            assertFalse(Files.exists(gameDir.resolve("options.txt")));
+        } finally {
+            finishDownload.countDown();
+            Minecraft.instance = null;
         }
     }
 }

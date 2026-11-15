@@ -2,13 +2,13 @@ package i18nautoupdatemod.launchwrapper;
 
 import i18nautoupdatemod.I18nAutoUpdateMod;
 import i18nautoupdatemod.util.Log;
-import i18nautoupdatemod.util.ModUtil;
 import i18nautoupdatemod.util.Reflection;
 import net.minecraft.launchwrapper.ITweaker;
 import net.minecraft.launchwrapper.LaunchClassLoader;
 
 import java.io.File;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.List;
 
 //1.6-1.12.2
@@ -28,7 +28,7 @@ public class LaunchWrapperTweaker implements ITweaker {
             Log.warning("Failed to get minecraft version.");
             return;
         }
-        I18nAutoUpdateMod.init(gameDirPath, mcVersion, "Forge", ModUtil.getModDomainsFromModsFolder(gameDirPath, mcVersion, "Forge"));
+        I18nAutoUpdateMod.init(gameDirPath, mcVersion, "Forge", Collections.emptySet());
     }
 
     @Override

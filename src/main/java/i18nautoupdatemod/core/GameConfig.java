@@ -4,79 +4,69 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import i18nautoupdatemod.util.FileUtil;
 import i18nautoupdatemod.util.Log;
-import org.apache.commons.io.FileUtils;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
-public class GameConfig {
+public final class GameConfig {
     private static final Gson GSON = new Gson();
-    private static final Type STRING_LIST_TYPE = new TypeToken<List<String>>() {
-    }.getType();
-    protected Map<String, String> configs = new LinkedHashMap<>();
+    private static final Type STRING_LIST_TYPE = new TypeToken<List<String>>() {}.getType();
+    private static final String PACKS_KEY = "resourcePacks:";
+    private final List<String> lines;
     private final Path configFile;
 
-    public GameConfig(Path configFile) throws Exception {
+    public GameConfig(Path configFile) throws IOException {
         this.configFile = configFile;
-        if (!Files.exists(configFile)) {
-            return;
+        List<String> stored;
+        try {
+            stored = Files.readAllLines(configFile, StandardCharsets.UTF_8);
+        } catch (NoSuchFileException e) {
+            stored = Collections.emptyList();
         }
-        this.configs = FileUtils.readLines(configFile.toFile(), StandardCharsets.UTF_8).stream()
-                .map(it -> it.split(":", 2))
-                .filter(it -> it.length == 2)
-                // Minecraft applies options in order, so a repeated key keeps its last value.
-                .collect(Collectors.toMap(it -> it[0], it -> it[1], (a, b) -> b, LinkedHashMap::new));
+        lines = new ArrayList<>(stored);
     }
 
-    public void writeToFile() throws Exception {
-        FileUtil.ensureDirectory(configFile.getParent());
-        Path temporary = configFile.resolveSibling(configFile.getFileName() + ".i18nautoupdatemod.part");
-        try {
-            FileUtils.writeLines(temporary.toFile(), "UTF-8", configs.entrySet().stream()
-                    .map(it -> it.getKey() + ":" + it.getValue()).collect(Collectors.toList()));
-            FileUtil.atomicReplace(temporary, configFile);
-        } finally {
-            Files.deleteIfExists(temporary);
-        }
+    public void writeToFile() throws IOException {
+        FileUtil.writeAtomically(configFile, temporary -> Files.write(temporary, lines, StandardCharsets.UTF_8));
     }
 
     public boolean addResourcePack(String baseName, String resourcePack) {
         return addResourcePack(baseName, resourcePack, true);
     }
 
-    /**
-     * @return whether the resource pack list changed
-     */
     public boolean addResourcePack(String baseName, String resourcePack, boolean forceBottom) {
-        String previous = configs.get("resourcePacks");
-        List<String> resourcePacks = GSON.fromJson(
-                configs.computeIfAbsent("resourcePacks", it -> "[]"), STRING_LIST_TYPE);
-        if (resourcePacks == null) {
-            resourcePacks = new java.util.ArrayList<>();
+        int line = lastPackLine();
+        List<String> previous = line < 0
+                ? null
+                : GSON.fromJson(lines.get(line).substring(PACKS_KEY.length()), STRING_LIST_TYPE);
+        List<String> packs = ResourcePackSelection.withLanguagePack(
+                previous == null ? Collections.emptyList() : previous, baseName, resourcePack, forceBottom);
+        if (packs.equals(previous)) {
+            return false;
         }
-        int existingIndex = -1;
-        for (int i = 0; i < resourcePacks.size(); i++) {
-            if (resourcePacks.get(i).contains(baseName)) {
-                existingIndex = i;
-                break;
+        String updated = PACKS_KEY + GSON.toJson(packs);
+        if (line < 0) {
+            lines.add(updated);
+        } else {
+            lines.set(line, updated);
+        }
+        Log.info("Resource packs: %s", packs);
+        return true;
+    }
+
+    private int lastPackLine() {
+        for (int i = lines.size() - 1; i >= 0; i--) {
+            if (lines.get(i).startsWith(PACKS_KEY)) {
+                return i;
             }
         }
-        // Remove older or misplaced language packs. options.txt lists packs from
-        // bottom to top priority, so index 0 is the bottom of the list.
-        resourcePacks = resourcePacks.stream()
-                .filter(it -> !it.contains(baseName))
-                .collect(Collectors.toList());
-        resourcePacks.add(forceBottom || existingIndex < 0 ? 0 : existingIndex, resourcePack);
-        String updated = GSON.toJson(resourcePacks);
-        configs.put("resourcePacks", updated);
-        Log.info(String.format("Resource Packs: %s", updated));
-//        configs.put("lang", "zh_cn");
-        return !updated.equals(previous);
+        return -1;
     }
 }

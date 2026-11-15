@@ -9,11 +9,11 @@
 
 ## 特性
 
-- 更新检查与下载均在独立守护线程完成，绝不拖慢游戏启动速度。
+- 模组资源扫描、更新检查和下载均在后台执行，已有资源包时无需等待，原始包缓存有效时不访问下载源
 - 单一 JAR 文件同时兼容 MinecraftForge、NeoForge、Fabric 与 Quilt，无需按加载器分别下载。
 - 直接对接官方发布源，不依赖更新易滞后的索引文件。
 - 国内网络并发探测可用镜像源，海外直连 GitHub，遇到超时、404 或校验失败自动无感回退。
-- 下载完成并校验 MD5 后再原子替换现有文件，网络中断或下载失败绝不损坏已有缓存。
+- 下载后检查 MD5 和 ZIP 结构，转换时限制展开大小并校验条目完整性，失败时保留已有可用文件
 - 根据当前游戏版本与 Loader 自动合并汉化资源，并生成适配当前版本的 `pack.mcmeta`（支持 1.6.1 到 26.3）。
 - 默认自动将汉化包注册在资源包列表最底层，不与玩家自定义的材质包抢优先级。
 
@@ -22,7 +22,7 @@
 1. 前往 [Modrinth](https://modrinth.com/mod/mEn7eS3l) 或 [GitHub Releases](https://github.com/ChouChiu/I18nAutoUpdateMod/releases) 下载最新 JAR。
 2. 将 JAR 放入客户端的 `mods` 文件夹，启动游戏即可。
 
-本模组仅需在客户端安装，服务端无需安装。首次启动且本地无缓存包时会有限等待数秒以直接载入汉化，若网络超时则在后台继续下载并在下次启动生效；日常已有缓存时完全异步检查更新，无需手动在资源包界面调整。
+本模组仅需在客户端安装，服务端无需安装。首次启动且游戏内没有生成好的资源包时，最多等待配置指定的秒数，若超时则继续在后台下载，Minecraft 26.1 及以上会在生成后尝试自动启用，旧版在下次启动时启用；已有资源包时直接使用
 
 ## 兼容性
 
@@ -88,11 +88,11 @@ Refactored from [CFPAOrg/I18nUpdateMod3](https://github.com/CFPAOrg/I18nUpdateMo
 
 ### Features
 
-- Updates are checked and downloaded on a background daemon thread, never slowing down game launch.
+- Mod scanning, update checks, and downloads run in the background; an installed pack is used immediately, and fresh source caches skip network checks
 - A single JAR supports MinecraftForge, NeoForge, Fabric, and Quilt out of the box.
 - Downloads directly from release sources instead of delayed index files.
 - Concurrently probes mainland China mirrors while preferring GitHub abroad, with automatic fallback on timeout, 404, or checksum mismatch.
-- Downloads to temporary files and verifies MD5 checksums before replacing, ensuring existing cache is never corrupted.
+- Checks the MD5 and ZIP structure before replacing cached downloads, and checks entry integrity and expanded size during conversion
 - Dynamically merges language assets and generates the correct `pack.mcmeta` format for your Minecraft version (1.6.1 through 26.3).
 - Placed at the bottom of the resource pack list by default, preserving custom texture pack priority.
 
@@ -101,7 +101,7 @@ Refactored from [CFPAOrg/I18nUpdateMod3](https://github.com/CFPAOrg/I18nUpdateMo
 1. Download the latest JAR from [Modrinth](https://modrinth.com/mod/mEn7eS3l) or [GitHub Releases](https://github.com/ChouChiu/I18nAutoUpdateMod/releases).
 2. Place the JAR into your `.minecraft/mods` directory.
 
-Client-side only; do not install on dedicated servers. On first launch without local cache, the game waits a few seconds so the pack is loaded immediately, falling back to the next launch if the download times out; existing cached packs are used immediately without blocking launch.
+Client-side only; do not install on dedicated servers. On first launch without a generated pack, the game waits up to the configured timeout; if the wait times out, Minecraft 26.1 and newer try to enable the pack once it is ready, while older versions enable it on the next launch
 
 ### Compatibility
 
